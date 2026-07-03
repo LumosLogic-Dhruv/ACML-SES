@@ -41,12 +41,21 @@ export async function logEmailFromSMTP(entry: {
   }
   const clientId = rows[0].id;
 
+  const existing = await pool.query(
+    `SELECT id FROM email_logs WHERE message_id = $1 AND recipient = $2 LIMIT 1`,
+    [entry.messageId, entry.recipient]
+  );
+  if (existing.rows.length > 0) {
+    console.log(`[emailLog] SMTP email already logged for messageId: ${entry.messageId}`);
+    return;
+  }
+
   await pool.query(
     `INSERT INTO email_logs (id, message_id, recipient, subject, sent_at, status, job_id, client_id)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4, 'sent', 'smtp', $5)
-     ON CONFLICT (message_id, recipient) DO NOTHING`,
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, 'sent', 'smtp', $5)`,
     [entry.messageId, entry.recipient, entry.subject, entry.sentAt, clientId]
   );
+  console.log(`[emailLog] SMTP email logged for messageId: ${entry.messageId}, recipient: ${entry.recipient}`);
 }
 
 export async function updateEmailEvent(messageId: string, event: 'delivered' | 'opened' | 'bounced'): Promise<void> {
