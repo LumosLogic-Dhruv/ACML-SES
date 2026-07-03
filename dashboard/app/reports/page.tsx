@@ -447,7 +447,7 @@ export default function ReportsPage() {
         {/* ── Status chips + Export buttons ────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 flex-wrap">
-            {(["all", "sent", "delivered", "bounced", "failed"] as StatusFilter[]).map(f => (
+            {(["all", "delivered", "bounced", "failed"] as StatusFilter[]).map(f => (
               <button key={f} onClick={() => setStatusFilter(f)}
                 className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
                   statusFilter === f

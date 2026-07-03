@@ -321,7 +321,7 @@ export default function RecentEmailsPage() {
 
         {/* Status filter chips */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          {(["all", "sent", "delivered", "bounced", "failed"] as StatusFilter[]).map((f) => (
+          {(["all", "delivered", "bounced", "failed"] as StatusFilter[]).map((f) => (
             <button key={f} onClick={() => { setStatusFilter(f); setCurrentPage(1) }}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
                 statusFilter === f
