@@ -287,28 +287,6 @@ export async function getStats(params: { days?: number; from?: string; to?: stri
   return res.json()
 }
 
-// ── Suppression List ─────────────────────────────────────────────────────────
-export interface SuppressionItem {
-  email: string
-  reason: string
-  suppressedAt: string
-}
-
-export async function getSuppressionList(role: string): Promise<{ items: SuppressionItem[] }> {
-  const endpoint = role === 'admin' ? '/admin/suppression/admin' : '/client/suppression/client'
-  const res = await fetchAdmin(endpoint)
-  if (!res.ok) throw new Error('Failed to fetch suppression list')
-  return res.json()
-}
-
-export async function removeFromSuppressionList(email: string): Promise<void> {
-  const res = await fetchAdmin(`/admin/suppression/${encodeURIComponent(email)}`, { method: 'DELETE' })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error((err as { error?: string }).error || 'Failed to remove from suppression list')
-  }
-}
-
 // ── Settings ──────────────────────────────────────────────────────────────────
 export async function getSettings(clientId?: string): Promise<{ report_email: string | null }> {
   const query = clientId ? `?clientId=${clientId}` : ''
