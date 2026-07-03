@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Mail, Download, X } from "lucide-react"
+import { Mail, Download, X, Search } from "lucide-react"
 import { getRecentEmails, getAdminClientEmails, getClientEmails } from "@/lib/api"
 import { useClient } from "@/lib/clientContext"
 import { decodeToken } from "@/lib/auth"
@@ -331,6 +331,7 @@ export default function RecentEmailsPage() {
   const [countDate, setCountDate] = useState<string>(getTodayIST())
   const [showExport, setShowExport] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [search, setSearch] = useState("")
 
   const fetchEmails = useCallback(async () => {
     setLoading(true)
@@ -358,6 +359,7 @@ export default function RecentEmailsPage() {
       }
       setEmails(data.emails ?? [])
       setCurrentPage(1)
+      setSearch("")
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error")
@@ -380,9 +382,14 @@ export default function RecentEmailsPage() {
     if (customFrom && customTo) fetchEmails()
   }
 
-  const filteredEmails = statusFilter === "all"
-    ? emails
-    : emails.filter(e => getEmailStatus(e) === statusFilter)
+  const searchTerm = search.trim().toLowerCase()
+  const filteredEmails = emails.filter(e => {
+    const matchStatus = statusFilter === "all" || getEmailStatus(e) === statusFilter
+    const matchSearch = !searchTerm ||
+      e.recipient.toLowerCase().includes(searchTerm) ||
+      e.subject.toLowerCase().includes(searchTerm)
+    return matchStatus && matchSearch
+  })
 
   const paginatedEmails = filteredEmails.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
@@ -513,6 +520,24 @@ export default function RecentEmailsPage() {
             {error}
           </div>
         )}
+
+        {/* Search bar */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted-foreground)]" />
+          <input
+            type="text"
+            placeholder="Search by email or subject..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
+            className="w-full sm:max-w-sm pl-9 pr-4 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+          />
+          {search && (
+            <button onClick={() => { setSearch(""); setCurrentPage(1) }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
 
         {/* Status filter chips */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
