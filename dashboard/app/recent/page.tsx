@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Mail, Download, X, Search } from "lucide-react"
+import { Mail, X, Search } from "lucide-react"
 import { getRecentEmails, getAdminClientEmails, getClientEmails } from "@/lib/api"
 import { useClient } from "@/lib/clientContext"
 import { decodeToken } from "@/lib/auth"
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+
 
 interface EmailLogEntry {
   id: string
@@ -42,17 +43,6 @@ function formatTime(isoString: string): string {
     minute: "2-digit",
     hour12: true,
   })
-}
-
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
-
-function getDateIST(isoString: string): string {
-  const istDate = new Date(new Date(isoString).getTime() + IST_OFFSET_MS)
-  return istDate.toISOString().split("T")[0]
-}
-
-function getTodayIST(): string {
-  return new Date(Date.now() + IST_OFFSET_MS).toISOString().split("T")[0]
 }
 
 type Preset = "1" | "7" | "30" | "90" | "custom"
@@ -108,175 +98,6 @@ function SkeletonRow() {
   )
 }
 
-// ── CSV Export ───────────────────────────────────────────────────────────────
-function exportCSV(emails: EmailLogEntry[], periodLabel: string) {
-  const headers = ['#', 'Email', 'Subject', 'Status', 'Delivered', 'Bounced', 'Time (IST)']
-  const rows = emails.map((e, i) => [
-    i + 1,
-    e.recipient,
-    `"${e.subject.replace(/"/g, '""')}"`,
-    getEmailStatus(e),
-    e.delivered ? 'Yes' : 'No',
-    e.bounced ? 'Yes' : 'No',
-    formatTime(e.sentAt),
-  ])
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `email-logs-${periodLabel.replace(/\s/g, '-')}-${getTodayIST()}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-// ── PDF Export (auto-download via jsPDF) ─────────────────────────────────────
-async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabel: string) {
-  const { jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-
-  const total = emails.length
-  const delivered = emails.filter(e => e.delivered).length
-  const bounced = emails.filter(e => e.bounced).length
-  const failed = emails.filter(e => e.status === 'failed').length
-  const deliveryRate = total > 0 ? ((delivered / total) * 100).toFixed(1) : '0.0'
-  const bounceRate = total > 0 ? ((bounced / total) * 100).toFixed(1) : '0.0'
-  const generatedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-  const pageW = doc.internal.pageSize.getWidth()
-
-  // Header bar
-  doc.setFillColor(99, 102, 241)
-  doc.rect(0, 0, pageW, 22, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(16); doc.setFont('helvetica', 'bold')
-  doc.text('LumosMails', 14, 13)
-  doc.setFontSize(10); doc.setFont('helvetica', 'normal')
-  doc.text('Email Performance Report', pageW - 14, 9, { align: 'right' })
-  doc.text(`${clientName} · ${periodLabel}`, pageW - 14, 15, { align: 'right' })
-
-  // Generated line
-  doc.setTextColor(100, 116, 139)
-  doc.setFontSize(8)
-  doc.text(`Generated: ${generatedAt} IST`, 14, 30)
-
-  // Section label
-  doc.setFontSize(9); doc.setFont('helvetica', 'bold')
-  doc.setTextColor(148, 163, 184)
-  doc.text('PERFORMANCE SUMMARY', 14, 40)
-
-  // Stat cards
-  const cardW = (pageW - 28 - 9) / 4
-  const cardH = 28
-  const cardY = 44
-  const cards = [
-    { label: 'Total Sent', value: String(total), sub: 'emails', color: [99, 102, 241] as [number,number,number] },
-    { label: 'Delivered', value: String(delivered), sub: `${deliveryRate}% rate`, color: [16, 185, 129] as [number,number,number] },
-    { label: 'Bounced', value: String(bounced), sub: `${bounceRate}% rate`, color: [239, 68, 68] as [number,number,number] },
-    { label: 'Failed', value: String(failed), sub: 'emails', color: [249, 115, 22] as [number,number,number] },
-  ]
-
-  cards.forEach((card, i) => {
-    const x = 14 + i * (cardW + 3)
-    doc.setFillColor(248, 250, 252)
-    doc.roundedRect(x, cardY, cardW, cardH, 2, 2, 'F')
-    doc.setFillColor(...card.color)
-    doc.rect(x, cardY, cardW, 1.5, 'F')
-    doc.setTextColor(100, 116, 139); doc.setFontSize(7); doc.setFont('helvetica', 'bold')
-    doc.text(card.label.toUpperCase(), x + cardW / 2, cardY + 7, { align: 'center' })
-    doc.setTextColor(...card.color); doc.setFontSize(18); doc.setFont('helvetica', 'bold')
-    doc.text(card.value, x + cardW / 2, cardY + 18, { align: 'center' })
-    doc.setTextColor(100, 116, 139); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-    doc.text(card.sub, x + cardW / 2, cardY + 24, { align: 'center' })
-  })
-
-  // Banner
-  const bannerY = cardY + cardH + 8
-  doc.setFillColor(99, 102, 241)
-  doc.roundedRect(14, bannerY, pageW - 28, 22, 3, 3, 'F')
-  const bannerCols = [
-    { label: 'PERIOD', value: periodLabel },
-    { label: 'DELIVERY RATE', value: `${deliveryRate}%` },
-    { label: 'BOUNCE RATE', value: `${bounceRate}%` },
-    { label: 'SUCCESS', value: `${delivered} / ${total}` },
-  ]
-  const colW = (pageW - 28) / 4
-  bannerCols.forEach((col, i) => {
-    const x = 14 + i * colW + colW / 2
-    doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-    doc.text(col.label, x, bannerY + 7, { align: 'center' })
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold')
-    doc.text(col.value, x, bannerY + 16, { align: 'center' })
-  })
-
-  // Footer
-  const footerY = 275
-  doc.setDrawColor(226, 232, 240)
-  doc.line(14, footerY, pageW - 14, footerY)
-  doc.setTextColor(148, 163, 184); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-  doc.text('LumosMails by LumosLogic', 14, footerY + 6)
-  doc.text('Confidential · For internal use only', pageW / 2, footerY + 6, { align: 'center' })
-  doc.text(new Date().toLocaleDateString('en-IN'), pageW - 14, footerY + 6, { align: 'right' })
-
-  doc.save(`email-report-${clientName}-${getTodayIST()}.pdf`)
-}
-
-// ── Export Modal ─────────────────────────────────────────────────────────────
-function ExportModal({ onClose, emails, clientName, periodLabel }: {
-  onClose: () => void
-  emails: EmailLogEntry[]
-  clientName: string
-  periodLabel: string
-}) {
-  const [exportLogs, setExportLogs] = useState(true)
-  const [exportReport, setExportReport] = useState(false)
-
-  const handleExport = async () => {
-    if (exportLogs) exportCSV(emails, periodLabel)
-    if (exportReport) await exportPDF(emails, clientName, periodLabel)
-    onClose()
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[var(--background)] border border-[var(--border)] rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-base font-bold">Export Report</h2>
-          <button onClick={onClose} className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <p className="text-xs text-[var(--muted-foreground)] mb-4">Select what to export based on current filters</p>
-
-        <div className="space-y-2 mb-6">
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border)] cursor-pointer hover:bg-[var(--muted)]/30 transition-colors">
-            <input type="checkbox" checked={exportLogs} onChange={e => setExportLogs(e.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-500" />
-            <div>
-              <div className="text-sm font-semibold">Email Logs</div>
-              <div className="text-xs text-[var(--muted-foreground)] mt-0.5">CSV file with all email records</div>
-            </div>
-          </label>
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border)] cursor-pointer hover:bg-[var(--muted)]/30 transition-colors">
-            <input type="checkbox" checked={exportReport} onChange={e => setExportReport(e.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-500" />
-            <div>
-              <div className="text-sm font-semibold">Dashboard Performance</div>
-              <div className="text-xs text-[var(--muted-foreground)] mt-0.5">PDF with delivery stats &amp; metrics</div>
-            </div>
-          </label>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onClose} className="flex-1">Cancel</Button>
-          <Button size="sm" onClick={handleExport} disabled={!exportLogs && !exportReport} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white">
-            <Download className="h-3.5 w-3.5 mr-1.5" />
-            Export
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Pagination ───────────────────────────────────────────────────────────────
 function Pagination({ total, page, onPage }: { total: number; page: number; onPage: (p: number) => void }) {
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -328,8 +149,6 @@ export default function RecentEmailsPage() {
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
-  const [countDate, setCountDate] = useState<string>(getTodayIST())
-  const [showExport, setShowExport] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [search, setSearch] = useState("")
 
@@ -340,7 +159,7 @@ export default function RecentEmailsPage() {
 
       if (preset === "custom" && customFrom && customTo) {
         params = { limit, from: customFrom, to: customTo }
-      } else if (preset !== "all") {
+      } else {
         params = { limit, days: parseInt(preset) }
       }
 
@@ -401,12 +220,6 @@ export default function RecentEmailsPage() {
     failed: emails.filter(e => getEmailStatus(e) === "failed").length,
   }
 
-  const selectedDateIST = countDate
-  const dayCount = emails.filter(e => getDateIST(e.sentAt) === selectedDateIST).length
-  const dayLabel = selectedDateIST === getTodayIST()
-    ? "Today"
-    : new Date(selectedDateIST + "T00:00:00").toLocaleDateString("en-IN", { month: "short", day: "numeric" })
-
   const presetLabel: Record<Preset, string> = {
     "1": "Today",
     "7": "Last 7 days",
@@ -415,64 +228,32 @@ export default function RecentEmailsPage() {
     "custom": customFrom && customTo ? `${customFrom} to ${customTo}` : "Custom",
   }
 
-  const clientName = selectedClientName || "Dashboard"
-
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      {showExport && (
-        <ExportModal
-          onClose={() => setShowExport(false)}
-          emails={filteredEmails}
-          clientName={clientName}
-          periodLabel={presetLabel[preset]}
-        />
-      )}
-
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="sticky top-14 lg:top-0 z-10 border-b border-[var(--border)] bg-[var(--background)]/95 backdrop-blur">
         <div className="px-4 sm:px-6 py-3 sm:py-4">
           {/* Title row */}
           <div className="flex items-start sm:items-center justify-between gap-3 mb-3">
-            {/* Left: title + day count badge */}
+            {/* Left: title + count based on current filter */}
             <div className="flex items-center gap-3 min-w-0">
               <Mail className="h-5 w-5 text-indigo-500 shrink-0" />
               <div className="min-w-0">
                 <h1 className="text-base sm:text-lg font-bold leading-none">Recent Emails</h1>
-                <p className="text-xs text-[var(--muted-foreground)] mt-0.5 hidden sm:block">
-                  Sent email history and delivery status
-                </p>
-                {/* Day count badge under title */}
-                <div className="flex items-center gap-2 mt-1.5">
-                  <input
-                    type="date"
-                    value={selectedDateIST}
-                    max={getTodayIST()}
-                    onChange={(e) => setCountDate(e.target.value)}
-                    className="text-xs border border-[var(--border)] rounded-md px-2 py-0.5 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
-                  />
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
-                    {loading ? (
-                      <span className="text-xs text-indigo-400">...</span>
-                    ) : (
-                      <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                        <span className="font-bold">{dayCount}</span> emails sent on {dayLabel}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                {!loading && (
+                  <p className="text-xs text-indigo-500 font-medium mt-0.5">
+                    {emails.length} emails · {presetLabel[preset]}
+                  </p>
+                )}
+                {loading && (
+                  <p className="text-xs text-[var(--muted-foreground)] mt-0.5">Loading...</p>
+                )}
               </div>
             </div>
 
             {/* Right: controls */}
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              {/* Row 1: export + preset + limit */}
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setShowExport(true)}
-                  className="text-xs h-8 px-3 border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400">
-                  <Download className="h-3.5 w-3.5 mr-1.5" />
-                  Export
-                </Button>
-
                 <Select value={preset} onValueChange={(v) => { setPreset(v as Preset); setCurrentPage(1) }}>
                   <SelectTrigger className="w-28 sm:w-36 text-xs sm:text-sm">
                     <SelectValue />
@@ -497,7 +278,6 @@ export default function RecentEmailsPage() {
                 </select>
               </div>
 
-              {/* Row 2: custom date range (only when custom selected) */}
               {preset === "custom" && (
                 <div className="flex items-center gap-2">
                   <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
