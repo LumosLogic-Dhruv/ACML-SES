@@ -119,6 +119,7 @@ export default function RecentEmailsPage() {
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [countDate, setCountDate] = useState<string>(getTodayIST())
 
   const fetchEmails = useCallback(async () => {
     setLoading(true)
@@ -180,7 +181,7 @@ export default function RecentEmailsPage() {
   }
 
   // Count for the selected day in IST
-  const selectedDateIST = preset === "custom" && customFrom ? customFrom : getTodayIST()
+  const selectedDateIST = countDate
   const dayCount = emails.filter(e => getDateIST(e.sentAt) === selectedDateIST).length
   const dayLabel = selectedDateIST === getTodayIST() ? "Today" : new Date(selectedDateIST + "T00:00:00").toLocaleDateString("en-IN", { month: "short", day: "numeric" })
 
@@ -200,39 +201,57 @@ export default function RecentEmailsPage() {
                   Sent email history and delivery status
                 </p>
               </div>
-              {!loading && (
-                <div className="flex items-center gap-1.5 ml-2 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 shrink-0">
-                  <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{dayCount}</span>
-                  <span className="text-xs text-indigo-500 dark:text-indigo-500">{dayLabel} (IST)</span>
-                </div>
-              )}
             </div>
 
-            {/* Controls — inline on desktop, stacked on mobile */}
-            <div className="flex items-center gap-2 shrink-0">
-              <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
-                <SelectTrigger className="w-28 sm:w-36 text-xs sm:text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All time</SelectItem>
-                  <SelectItem value="1">Today</SelectItem>
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 3 months</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Controls — top right */}
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              {/* Row 1: dropdowns */}
+              <div className="flex items-center gap-2">
+                <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
+                  <SelectTrigger className="w-28 sm:w-36 text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All time</SelectItem>
+                    <SelectItem value="1">Today</SelectItem>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="90">Last 3 months</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <select
-                value={limit}
-                onChange={(e) => { setLoading(true); setLimit(Number(e.target.value)) }}
-                className="text-xs sm:text-sm border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
-              >
-                {LIMIT_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>Limit {opt}</option>
-                ))}
-              </select>
+                <select
+                  value={limit}
+                  onChange={(e) => { setLoading(true); setLimit(Number(e.target.value)) }}
+                  className="text-xs sm:text-sm border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
+                >
+                  {LIMIT_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>Limit {opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Row 2: day count badge with date picker */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={selectedDateIST}
+                  max={getTodayIST()}
+                  onChange={(e) => setCountDate(e.target.value)}
+                  className="text-xs border border-[var(--border)] rounded-md px-2 py-1 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
+                />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
+                  {loading ? (
+                    <span className="text-xs text-indigo-400">...</span>
+                  ) : (
+                    <>
+                      <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{dayCount}</span>
+                      <span className="text-xs text-indigo-500">{dayLabel} (IST)</span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
