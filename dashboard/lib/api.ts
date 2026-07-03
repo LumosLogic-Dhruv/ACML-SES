@@ -286,3 +286,24 @@ export async function getStats(params: { days?: number; from?: string; to?: stri
   if (!res.ok) throw new Error('Failed to fetch stats')
   return res.json()
 }
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+export async function getSettings(clientId?: string): Promise<{ report_email: string | null }> {
+  const query = clientId ? `?clientId=${clientId}` : ''
+  const res = await fetchAdmin(`/client/settings${query}`)
+  if (!res.ok) throw new Error('Failed to fetch settings')
+  return res.json()
+}
+
+export async function updateSettings(report_email: string, clientId?: string): Promise<{ success: boolean; report_email: string | null }> {
+  const query = clientId ? `?clientId=${clientId}` : ''
+  const res = await fetchAdmin(`/client/settings${query}`, {
+    method: 'PUT',
+    body: JSON.stringify({ report_email }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to update settings')
+  }
+  return res.json()
+}

@@ -16,6 +16,8 @@ import metricsRoutes from './routes/metrics';
 import statsRoutes from './routes/stats';
 import webhookRoutes from './routes/webhook';
 import docsRoutes from './routes/docs';
+import settingsRoutes from './routes/settings';
+import { startReportCron } from './workers/reportCron';
 
 const app = express();
 
@@ -59,6 +61,7 @@ app.use('/admin', requireAuth, requireAdminRole, adminRoutes);
 
 // Client self-service routes — JWT only (scoped to their own client_id)
 app.use('/client', requireAuth, clientRoutes);
+app.use('/client', requireAuth, settingsRoutes);
 
 // Send routes — strict rate limit (multipart + JSON)
 app.use('/api', rateLimiter, requireApiKey, sendRoutes);
@@ -88,7 +91,10 @@ app.use((err: Error & { code?: string }, _req: Request, res: Response, _next: Ne
 });
 
 initDb()
-  .then(() => console.log('[db] PostgreSQL ready'))
+  .then(() => {
+    console.log('[db] PostgreSQL ready');
+    startReportCron();
+  })
   .catch(err => console.error('[db] init failed:', err.message));
 
 const server = app.listen(config.port, () => {

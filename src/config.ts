@@ -32,4 +32,11 @@ export const config = {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
     region: process.env.AWS_REGION || 'ap-south-1',
   },
+  reportSmtp: {
+    host: process.env.REPORT_SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.REPORT_SMTP_PORT || '587'),
+    user: process.env.REPORT_SMTP_USER || '',
+    pass: process.env.REPORT_SMTP_PASS || '',
+    from: process.env.REPORT_FROM_EMAIL || '',
+  },
 };
