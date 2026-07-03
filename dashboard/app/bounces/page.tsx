@@ -93,7 +93,7 @@ export default function BouncesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [limit, setLimit] = useState(1000)
-  const [preset, setPreset] = useState<Preset>("30")
+  const [preset, setPreset] = useState<Preset>("1")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
   const [search, setSearch] = useState("")

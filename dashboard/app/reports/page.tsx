@@ -280,7 +280,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [limit, setLimit] = useState(1000)
-  const [preset, setPreset] = useState<Preset>("7")
+  const [preset, setPreset] = useState<Preset>("1")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")

@@ -48,7 +48,7 @@ const CHART_COLORS = {
 
 export default function Dashboard() {
   const { role, selectedClientId, selectedClientName } = useClient()
-  const [preset, setPreset] = useState<Preset>("7")
+  const [preset, setPreset] = useState<Preset>("1")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
   const [stats, setStats] = useState<DbStats | null>(null)
