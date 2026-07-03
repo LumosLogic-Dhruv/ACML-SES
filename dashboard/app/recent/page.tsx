@@ -130,8 +130,11 @@ function exportCSV(emails: EmailLogEntry[], periodLabel: string) {
   URL.revokeObjectURL(url)
 }
 
-// ── PDF Export ───────────────────────────────────────────────────────────────
-function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabel: string) {
+// ── PDF Export (auto-download via jsPDF) ─────────────────────────────────────
+async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabel: string) {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
   const total = emails.length
   const delivered = emails.filter(e => e.delivered).length
   const bounced = emails.filter(e => e.bounced).length
@@ -139,103 +142,82 @@ function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabel: str
   const deliveryRate = total > 0 ? ((delivered / total) * 100).toFixed(1) : '0.0'
   const bounceRate = total > 0 ? ((bounced / total) * 100).toFixed(1) : '0.0'
   const generatedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+  const pageW = doc.internal.pageSize.getWidth()
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Email Performance Report</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; background: #fff; padding: 40px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 3px solid #6366f1; }
-    .brand { font-size: 24px; font-weight: 900; color: #6366f1; letter-spacing: -0.5px; }
-    .brand span { color: #1e293b; }
-    .meta-right { text-align: right; }
-    .report-title { font-size: 18px; font-weight: 700; color: #1e293b; }
-    .report-sub { font-size: 12px; color: #64748b; margin-top: 3px; }
-    .section-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; margin-top: 28px; }
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-    .stat-card { border-radius: 12px; padding: 18px; text-align: center; position: relative; overflow: hidden; }
-    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-    .stat-card.blue { background: #eff6ff; } .stat-card.blue::before { background: #6366f1; }
-    .stat-card.green { background: #f0fdf4; } .stat-card.green::before { background: #10b981; }
-    .stat-card.red { background: #fef2f2; } .stat-card.red::before { background: #ef4444; }
-    .stat-card.orange { background: #fff7ed; } .stat-card.orange::before { background: #f97316; }
-    .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
-    .stat-value { font-size: 32px; font-weight: 900; margin: 8px 0 4px; }
-    .stat-value.blue { color: #6366f1; } .stat-value.green { color: #10b981; }
-    .stat-value.red { color: #ef4444; } .stat-value.orange { color: #f97316; }
-    .rate-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
-    .rate-pill.green { background: #bbf7d0; color: #14532d; }
-    .rate-pill.red { background: #fecaca; color: #7f1d1d; }
-    .rate-pill.gray { background: #e2e8f0; color: #475569; }
-    .banner { margin-top: 20px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; padding: 20px 24px; color: white; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .banner-item .b-label { font-size: 11px; opacity: 0.75; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-    .banner-item .b-value { font-size: 22px; font-weight: 800; margin-top: 4px; }
-    .footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8; }
-    .footer-brand { font-weight: 700; color: #6366f1; }
-    @media print { body { padding: 24px; } @page { margin: 1cm; } }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="brand">Lumos<span>Mails</span></div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:3px;">by LumosLogic</div>
-    </div>
-    <div class="meta-right">
-      <div class="report-title">Email Performance Report</div>
-      <div class="report-sub">${clientName} &nbsp;·&nbsp; ${periodLabel}</div>
-      <div class="report-sub" style="margin-top:2px;">Generated: ${generatedAt} IST</div>
-    </div>
-  </div>
+  // Header bar
+  doc.setFillColor(99, 102, 241)
+  doc.rect(0, 0, pageW, 22, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold')
+  doc.text('LumosMails', 14, 13)
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+  doc.text('Email Performance Report', pageW - 14, 9, { align: 'right' })
+  doc.text(`${clientName} · ${periodLabel}`, pageW - 14, 15, { align: 'right' })
 
-  <div class="section-label">Performance Summary</div>
-  <div class="stats-grid">
-    <div class="stat-card blue">
-      <div class="stat-label">Total Sent</div>
-      <div class="stat-value blue">${total}</div>
-      <div class="rate-pill gray">emails</div>
-    </div>
-    <div class="stat-card green">
-      <div class="stat-label">Delivered</div>
-      <div class="stat-value green">${delivered}</div>
-      <div class="rate-pill green">${deliveryRate}% rate</div>
-    </div>
-    <div class="stat-card red">
-      <div class="stat-label">Bounced</div>
-      <div class="stat-value red">${bounced}</div>
-      <div class="rate-pill red">${bounceRate}% rate</div>
-    </div>
-    <div class="stat-card orange">
-      <div class="stat-label">Failed</div>
-      <div class="stat-value orange">${failed}</div>
-      <div class="rate-pill gray">${total > 0 ? ((failed/total)*100).toFixed(1) : '0.0'}% rate</div>
-    </div>
-  </div>
+  // Generated line
+  doc.setTextColor(100, 116, 139)
+  doc.setFontSize(8)
+  doc.text(`Generated: ${generatedAt} IST`, 14, 30)
 
-  <div class="banner">
-    <div class="banner-item"><div class="b-label">Period</div><div class="b-value" style="font-size:15px;margin-top:6px;">${periodLabel}</div></div>
-    <div class="banner-item"><div class="b-label">Delivery Rate</div><div class="b-value">${deliveryRate}%</div></div>
-    <div class="banner-item"><div class="b-label">Bounce Rate</div><div class="b-value">${bounceRate}%</div></div>
-    <div class="banner-item"><div class="b-label">Success</div><div class="b-value">${delivered}<span style="font-size:14px;opacity:0.7"> / ${total}</span></div></div>
-  </div>
+  // Section label
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold')
+  doc.setTextColor(148, 163, 184)
+  doc.text('PERFORMANCE SUMMARY', 14, 40)
 
-  <div class="footer">
-    <div class="footer-brand">LumosMails</div>
-    <div>Confidential · For internal use only</div>
-    <div>${new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}</div>
-  </div>
-</body>
-</html>`
+  // Stat cards
+  const cardW = (pageW - 28 - 9) / 4
+  const cardH = 28
+  const cardY = 44
+  const cards = [
+    { label: 'Total Sent', value: String(total), sub: 'emails', color: [99, 102, 241] as [number,number,number] },
+    { label: 'Delivered', value: String(delivered), sub: `${deliveryRate}% rate`, color: [16, 185, 129] as [number,number,number] },
+    { label: 'Bounced', value: String(bounced), sub: `${bounceRate}% rate`, color: [239, 68, 68] as [number,number,number] },
+    { label: 'Failed', value: String(failed), sub: 'emails', color: [249, 115, 22] as [number,number,number] },
+  ]
 
-  const win = window.open('', '_blank', 'width=960,height=720')
-  if (win) {
-    win.document.write(html)
-    win.document.close()
-    setTimeout(() => win.print(), 600)
-  }
+  cards.forEach((card, i) => {
+    const x = 14 + i * (cardW + 3)
+    doc.setFillColor(248, 250, 252)
+    doc.roundedRect(x, cardY, cardW, cardH, 2, 2, 'F')
+    doc.setFillColor(...card.color)
+    doc.rect(x, cardY, cardW, 1.5, 'F')
+    doc.setTextColor(100, 116, 139); doc.setFontSize(7); doc.setFont('helvetica', 'bold')
+    doc.text(card.label.toUpperCase(), x + cardW / 2, cardY + 7, { align: 'center' })
+    doc.setTextColor(...card.color); doc.setFontSize(18); doc.setFont('helvetica', 'bold')
+    doc.text(card.value, x + cardW / 2, cardY + 18, { align: 'center' })
+    doc.setTextColor(100, 116, 139); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text(card.sub, x + cardW / 2, cardY + 24, { align: 'center' })
+  })
+
+  // Banner
+  const bannerY = cardY + cardH + 8
+  doc.setFillColor(99, 102, 241)
+  doc.roundedRect(14, bannerY, pageW - 28, 22, 3, 3, 'F')
+  const bannerCols = [
+    { label: 'PERIOD', value: periodLabel },
+    { label: 'DELIVERY RATE', value: `${deliveryRate}%` },
+    { label: 'BOUNCE RATE', value: `${bounceRate}%` },
+    { label: 'SUCCESS', value: `${delivered} / ${total}` },
+  ]
+  const colW = (pageW - 28) / 4
+  bannerCols.forEach((col, i) => {
+    const x = 14 + i * colW + colW / 2
+    doc.setTextColor(255, 255, 255); doc.setFontSize(7); doc.setFont('helvetica', 'normal')
+    doc.text(col.label, x, bannerY + 7, { align: 'center' })
+    doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+    doc.text(col.value, x, bannerY + 16, { align: 'center' })
+  })
+
+  // Footer
+  const footerY = 275
+  doc.setDrawColor(226, 232, 240)
+  doc.line(14, footerY, pageW - 14, footerY)
+  doc.setTextColor(148, 163, 184); doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+  doc.text('LumosMails by LumosLogic', 14, footerY + 6)
+  doc.text('Confidential · For internal use only', pageW / 2, footerY + 6, { align: 'center' })
+  doc.text(new Date().toLocaleDateString('en-IN'), pageW - 14, footerY + 6, { align: 'right' })
+
+  doc.save(`email-report-${clientName}-${getTodayIST()}.pdf`)
 }
 
 // ── Export Modal ─────────────────────────────────────────────────────────────
@@ -248,9 +230,9 @@ function ExportModal({ onClose, emails, clientName, periodLabel }: {
   const [exportLogs, setExportLogs] = useState(true)
   const [exportReport, setExportReport] = useState(false)
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (exportLogs) exportCSV(emails, periodLabel)
-    if (exportReport) exportPDF(emails, clientName, periodLabel)
+    if (exportReport) await exportPDF(emails, clientName, periodLabel)
     onClose()
   }
 
@@ -444,6 +426,7 @@ export default function RecentEmailsPage() {
         <div className="px-4 sm:px-6 py-3 sm:py-4">
           {/* Title row */}
           <div className="flex items-start sm:items-center justify-between gap-3 mb-3">
+            {/* Left: title + day count badge */}
             <div className="flex items-center gap-3 min-w-0">
               <Mail className="h-5 w-5 text-indigo-500 shrink-0" />
               <div className="min-w-0">
@@ -451,12 +434,31 @@ export default function RecentEmailsPage() {
                 <p className="text-xs text-[var(--muted-foreground)] mt-0.5 hidden sm:block">
                   Sent email history and delivery status
                 </p>
+                {/* Day count badge under title */}
+                <div className="flex items-center gap-2 mt-1.5">
+                  <input
+                    type="date"
+                    value={selectedDateIST}
+                    max={getTodayIST()}
+                    onChange={(e) => setCountDate(e.target.value)}
+                    className="text-xs border border-[var(--border)] rounded-md px-2 py-0.5 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
+                  />
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
+                    {loading ? (
+                      <span className="text-xs text-indigo-400">...</span>
+                    ) : (
+                      <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                        <span className="font-bold">{dayCount}</span> emails sent on {dayLabel}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Controls top right */}
+            {/* Right: controls */}
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              {/* Row 1: dropdowns + export */}
+              {/* Row 1: export + preset + limit */}
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => setShowExport(true)}
                   className="text-xs h-8 px-3 border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400">
@@ -488,40 +490,19 @@ export default function RecentEmailsPage() {
                 </select>
               </div>
 
-              {/* Row 2: day count badge with date picker */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={selectedDateIST}
-                  max={getTodayIST()}
-                  onChange={(e) => setCountDate(e.target.value)}
-                  className="text-xs border border-[var(--border)] rounded-md px-2 py-1 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
-                />
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
-                  {loading ? (
-                    <span className="text-xs text-indigo-400">...</span>
-                  ) : (
-                    <>
-                      <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{dayCount}</span>
-                      <span className="text-xs text-indigo-500">{dayLabel} (IST)</span>
-                    </>
-                  )}
+              {/* Row 2: custom date range (only when custom selected) */}
+              {preset === "custom" && (
+                <div className="flex items-center gap-2">
+                  <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
+                    className="text-xs border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)]" />
+                  <span className="text-xs text-[var(--muted-foreground)]">to</span>
+                  <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
+                    className="text-xs border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)]" />
+                  <Button size="sm" onClick={handleCustomApply} disabled={!customFrom || !customTo} className="h-7 text-xs">Apply</Button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
-
-          {/* Custom date range — below header row */}
-          {preset === "custom" && (
-            <div className="flex flex-wrap items-center gap-2 pb-1">
-              <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
-                className="text-sm border border-[var(--border)] rounded-md px-3 py-1.5 bg-[var(--background)] text-[var(--foreground)]" />
-              <span className="text-sm text-[var(--muted-foreground)]">to</span>
-              <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
-                className="text-sm border border-[var(--border)] rounded-md px-3 py-1.5 bg-[var(--background)] text-[var(--foreground)]" />
-              <Button size="sm" onClick={handleCustomApply} disabled={!customFrom || !customTo}>Apply</Button>
-            </div>
-          )}
         </div>
       </header>
 
