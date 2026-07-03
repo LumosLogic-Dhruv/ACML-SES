@@ -30,13 +30,14 @@ export default function SuppressionPage() {
   const [removingEmail, setRemovingEmail] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  const isAdmin = decodeToken()?.role === "admin"
+  const role = decodeToken()?.role ?? "client"
+  const isAdmin = role === "admin"
 
   async function fetchList() {
     setLoading(true)
     setError(null)
     try {
-      const data = await getSuppressionList()
+      const data = await getSuppressionList(role)
       setItems(data.items)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load suppression list")
@@ -46,9 +47,9 @@ export default function SuppressionPage() {
   }
 
   useEffect(() => {
-    if (!isAdmin) return
     fetchList()
-  }, [isAdmin])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleRemove(email: string) {
     setRemovingEmail(email)
@@ -63,17 +64,6 @@ export default function SuppressionPage() {
     } finally {
       setRemovingEmail(null)
     }
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="text-center">
-          <ShieldOff className="h-12 w-12 text-[var(--muted-foreground)] mx-auto mb-3 opacity-40" />
-          <p className="text-sm text-[var(--muted-foreground)]">Admin access required</p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -153,18 +143,20 @@ export default function SuppressionPage() {
                     <ReasonBadge reason={item.reason} />
                     <p className="text-xs text-[var(--muted-foreground)] mt-1.5">{formatDate(item.suppressedAt)}</p>
                   </div>
-                  <button
-                    onClick={() => handleRemove(item.email)}
-                    disabled={removingEmail === item.email}
-                    className="shrink-0 flex items-center gap-1 text-xs text-red-500 hover:text-red-600 disabled:opacity-50 transition-colors mt-0.5"
-                  >
-                    {removingEmail === item.email ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                    Remove
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleRemove(item.email)}
+                      disabled={removingEmail === item.email}
+                      className="shrink-0 flex items-center gap-1 text-xs text-red-500 hover:text-red-600 disabled:opacity-50 transition-colors mt-0.5"
+                    >
+                      {removingEmail === item.email ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -180,7 +172,7 @@ export default function SuppressionPage() {
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Email Address</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Reason</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Suppressed At (IST)</th>
-                <th className="px-4 py-3 text-center font-medium text-[var(--muted-foreground)]">Action</th>
+                {isAdmin && <th className="px-4 py-3 text-center font-medium text-[var(--muted-foreground)]">Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -196,7 +188,7 @@ export default function SuppressionPage() {
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={isAdmin ? 5 : 4}>
                     <div className="flex flex-col items-center justify-center py-16 gap-3 text-[var(--muted-foreground)]">
                       <ShieldOff className="h-10 w-10 opacity-30" />
                       <p className="text-sm">No suppressed email addresses</p>
@@ -211,20 +203,22 @@ export default function SuppressionPage() {
                     <td className="px-4 py-3 font-mono text-xs">{item.email}</td>
                     <td className="px-4 py-3"><ReasonBadge reason={item.reason} /></td>
                     <td className="px-4 py-3 text-[var(--muted-foreground)] text-xs whitespace-nowrap">{formatDate(item.suppressedAt)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => handleRemove(item.email)}
-                        disabled={removingEmail === item.email}
-                        className="inline-flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 disabled:opacity-50 transition-colors font-medium"
-                      >
-                        {removingEmail === item.email ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                        {removingEmail === item.email ? "Removing…" : "Remove"}
-                      </button>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => handleRemove(item.email)}
+                          disabled={removingEmail === item.email}
+                          className="inline-flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 disabled:opacity-50 transition-colors font-medium"
+                        >
+                          {removingEmail === item.email ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                          {removingEmail === item.email ? "Removing…" : "Remove"}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

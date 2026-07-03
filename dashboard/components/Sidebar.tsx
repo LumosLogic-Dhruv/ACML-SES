@@ -7,10 +7,11 @@ import { clearAuth } from "@/lib/auth"
 import { useClient } from "@/lib/clientContext"
 
 const clientNavItems = [
-  { label: "Dashboard",     href: "/",          icon: LayoutDashboard },
-  { label: "Recent Emails", href: "/recent",    icon: Mail },
-  { label: "Reports",       href: "/reports",   icon: FileBarChart2 },
-  { label: "Settings",      href: "/settings",  icon: Settings },
+  { label: "Dashboard",     href: "/",             icon: LayoutDashboard },
+  { label: "Recent Emails", href: "/recent",       icon: Mail },
+  { label: "Reports",       href: "/reports",      icon: FileBarChart2 },
+  { label: "Suppression",   href: "/suppression",  icon: ShieldOff },
+  { label: "Settings",      href: "/settings",     icon: Settings },
 ]
 
 const adminNavItems = [

@@ -61,6 +61,9 @@ app.use('/auth', authRoutes);
 app.use('/admin', requireAuth, requireAdminRole, adminRoutes);
 app.use('/admin/suppression', requireAuth, requireAdminRole, suppressionRoutes);
 
+// Client suppression — JWT only (scoped to their own emails)
+app.use('/client/suppression', requireAuth, suppressionRoutes);
+
 // Client self-service routes — JWT only (scoped to their own client_id)
 app.use('/client', requireAuth, clientRoutes);
 app.use('/client', requireAuth, settingsRoutes);

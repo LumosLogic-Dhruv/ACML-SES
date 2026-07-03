@@ -294,8 +294,9 @@ export interface SuppressionItem {
   suppressedAt: string
 }
 
-export async function getSuppressionList(): Promise<{ items: SuppressionItem[]; nextToken: string | null }> {
-  const res = await fetchAdmin('/admin/suppression')
+export async function getSuppressionList(role: string): Promise<{ items: SuppressionItem[] }> {
+  const endpoint = role === 'admin' ? '/admin/suppression/admin' : '/client/suppression/client'
+  const res = await fetchAdmin(endpoint)
   if (!res.ok) throw new Error('Failed to fetch suppression list')
   return res.json()
 }

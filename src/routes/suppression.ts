@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { SESv2Client, ListSuppressedDestinationsCommand, DeleteSuppressedDestinationCommand } from '@aws-sdk/client-sesv2';
 import { config } from '../config';
+import { pool } from '../services/db';
 
 const router = Router();
 
@@ -14,19 +15,21 @@ function getSESClient(): SESv2Client {
   });
 }
 
-// GET /admin/suppression?nextToken=xxx
-router.get('/', async (_req: Request, res: Response) => {
+async function fetchAllSuppressed(): Promise<{ email: string; reason: string; suppressedAt: string }[]> {
+  const sesClient = getSESClient();
+  const result = await sesClient.send(new ListSuppressedDestinationsCommand({ PageSize: 100 }));
+  return (result.SuppressedDestinationSummaries ?? []).map((item: { EmailAddress?: string; Reason?: string; LastUpdateTime?: Date }) => ({
+    email: item.EmailAddress ?? '',
+    reason: item.Reason ?? '',
+    suppressedAt: item.LastUpdateTime?.toISOString() ?? new Date().toISOString(),
+  }));
+}
+
+// GET /admin/suppression — all suppressed emails (admin only)
+router.get('/admin', async (_req: Request, res: Response) => {
   try {
-    const client = getSESClient();
-    const result = await client.send(new ListSuppressedDestinationsCommand({ PageSize: 100 }));
-
-    const items = (result.SuppressedDestinationSummaries ?? []).map(item => ({
-      email: item.EmailAddress,
-      reason: item.Reason,
-      suppressedAt: item.LastUpdateTime?.toISOString(),
-    }));
-
-    res.json({ items, nextToken: result.NextToken ?? null });
+    const items = await fetchAllSuppressed();
+    res.json({ items });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[suppression] list error:', msg);
@@ -34,7 +37,39 @@ router.get('/', async (_req: Request, res: Response) => {
   }
 });
 
-// DELETE /admin/suppression/:email
+// GET /client/suppression — suppressed emails filtered to this client's recipients
+router.get('/client', async (req: Request, res: Response) => {
+  const clientId = req.user?.clientId;
+  if (!clientId) {
+    res.status(403).json({ error: 'No client associated with this account' });
+    return;
+  }
+
+  try {
+    // Get all recipients this client has sent to
+    const { rows } = await pool.query<{ recipient: string }>(
+      `SELECT DISTINCT LOWER(recipient) AS recipient FROM email_logs WHERE client_id = $1`,
+      [clientId]
+    );
+    const clientEmails = new Set(rows.map(r => r.recipient.toLowerCase()));
+
+    if (clientEmails.size === 0) {
+      res.json({ items: [] });
+      return;
+    }
+
+    const allSuppressed = await fetchAllSuppressed();
+    const items = allSuppressed.filter(item => clientEmails.has(item.email.toLowerCase()));
+
+    res.json({ items });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[suppression] client list error:', msg);
+    res.status(500).json({ error: 'Failed to fetch suppression list' });
+  }
+});
+
+// DELETE /admin/suppression/:email — remove from suppression (admin only)
 router.delete('/:email', async (req: Request, res: Response) => {
   const email = decodeURIComponent(req.params.email);
   if (!email || !email.includes('@')) {
@@ -43,8 +78,8 @@ router.delete('/:email', async (req: Request, res: Response) => {
   }
 
   try {
-    const client = getSESClient();
-    await client.send(new DeleteSuppressedDestinationCommand({ EmailAddress: email }));
+    const sesClient = getSESClient();
+    await sesClient.send(new DeleteSuppressedDestinationCommand({ EmailAddress: email }));
     res.json({ success: true, message: `${email} removed from suppression list` });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
