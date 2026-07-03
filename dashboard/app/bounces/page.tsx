@@ -329,9 +329,9 @@ export default function BouncesPage() {
                     <td className="px-4 py-3 text-[var(--muted-foreground)]">{idx + 1}</td>
                     <td className="px-4 py-3 font-mono text-xs">{maskEmail(email.recipient)}</td>
                     <td className="px-4 py-3 max-w-[200px] truncate">{email.subject}</td>
-                    <td className="px-4 py-3 max-w-[280px]">
+                    <td className="px-4 py-3 max-w-[320px]">
                       {email.bounceReason ? (
-                        <span className="text-xs text-red-500" title={email.bounceReason}>
+                        <span className="text-xs text-red-500 break-words leading-relaxed">
                           {email.bounceReason}
                         </span>
                       ) : (

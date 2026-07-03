@@ -214,6 +214,11 @@ function generatePdfBuffer(params: {
       const status = getDisplayStatus(row);
       const time = formatTimeIST(row.sent_at);
 
+      // Truncate bounce reason to fit column (60pt wide ≈ 35 chars)
+      const reasonText = row.bounce_reason
+        ? (row.bounce_reason.length > 35 ? row.bounce_reason.slice(0, 34) + '...' : row.bounce_reason)
+        : '-';
+
       const values = [
         String(idx + 1),
         row.recipient,
@@ -221,7 +226,7 @@ function generatePdfBuffer(params: {
         status,
         row.delivered ? 'Yes' : 'No',
         row.bounced ? 'Yes' : 'No',
-        row.bounce_reason || '-',
+        reasonText,
         time,
       ];
 

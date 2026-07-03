@@ -424,9 +424,9 @@ export default function RecentEmailsPage() {
                     <td className="px-4 py-3 text-center">
                       {email.bounced ? <span className="text-red-500">✓</span> : <span className="text-[var(--muted-foreground)]">—</span>}
                     </td>
-                    <td className="px-4 py-3 max-w-[200px]">
+                    <td className="px-4 py-3 max-w-[220px]">
                       {email.bounceReason ? (
-                        <span className="text-xs text-red-500 truncate block" title={email.bounceReason}>
+                        <span className="text-xs text-red-500 break-words leading-relaxed">
                           {email.bounceReason}
                         </span>
                       ) : (

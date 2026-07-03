@@ -169,9 +169,9 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
   doc.setTextColor(148, 163, 184)
   doc.text("EMAIL LOGS", 14, tableStartY)
 
-  // Table header — widths: # 8, Recipient 38, Subject 42, Status 18, Del 10, Bounced 10, Reason 28, Time 28 = 182mm
-  const rowH = 7
-  const colXs = [14, 22, 60, 102, 120, 130, 140, 168]
+  // Table header — widths: # 8, Recipient 36, Subject 38, Status 16, Del 9, Bnc 9, Reason 40, Time 26 = 182mm
+  const rowH = 8
+  const colXs = [14, 22, 58, 96, 112, 121, 130, 170]
   const colLabels = ["#", "Recipient", "Subject", "Status", "Del", "Bnc", "Bounce Reason", "Time"]
   const headerY = tableStartY + 5
 
@@ -247,10 +247,15 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
     doc.setTextColor(email.bounced ? 239 : 100, email.bounced ? 68 : 116, email.bounced ? 68 : 139)
     doc.text(email.bounced ? "Yes" : "No", colXs[5] + 1, currentY + 5)
 
-    // Bounce Reason — truncate (28mm col ~18 chars)
-    doc.setTextColor(239, 68, 68)
-    const reasonTxt = email.bounceReason ? (email.bounceReason.length > 18 ? email.bounceReason.slice(0, 17) + "..." : email.bounceReason) : "-"
-    doc.text(reasonTxt, colXs[6] + 1, currentY + 5)
+    // Bounce Reason — wrap in 40mm col
+    doc.setTextColor(239, 68, 68); doc.setFont("helvetica", "normal")
+    const reasonColW = colXs[7] - colXs[6] - 2
+    const reasonLines = doc.splitTextToSize(email.bounceReason || "-", reasonColW)
+    const reasonLineH = 3.5
+    const rowActualH = Math.max(rowH, reasonLines.length * reasonLineH + 2)
+    reasonLines.forEach((line: string, li: number) => {
+      doc.text(line, colXs[6] + 1, currentY + 4 + li * reasonLineH)
+    })
 
     // Time
     doc.setTextColor(100, 116, 139)
@@ -259,9 +264,9 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
 
     // Row divider
     doc.setDrawColor(226, 232, 240)
-    doc.line(14, currentY + rowH, pageW - 14, currentY + rowH)
+    doc.line(14, currentY + rowActualH, pageW - 14, currentY + rowActualH)
 
-    currentY += rowH
+    currentY += rowActualH
   })
 
   addFooter()
@@ -606,9 +611,9 @@ export default function ReportsPage() {
                       <td className="px-4 py-3 text-center">
                         {email.bounced ? <span className="text-red-500">✓</span> : <span className="text-[var(--muted-foreground)]">—</span>}
                       </td>
-                      <td className="px-4 py-3 max-w-[180px]">
+                      <td className="px-4 py-3 max-w-[220px]">
                         {email.bounceReason ? (
-                          <span className="text-xs text-red-500 truncate block" title={email.bounceReason}>
+                          <span className="text-xs text-red-500 break-words leading-relaxed">
                             {email.bounceReason}
                           </span>
                         ) : (
