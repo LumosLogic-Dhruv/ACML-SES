@@ -17,6 +17,7 @@ export async function initDb(): Promise<void> {
   await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS ses_config_set TEXT`).catch(() => {});
   await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS daily_limit INTEGER NOT NULL DEFAULT 0`).catch(() => {});
   await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS report_email TEXT`).catch(() => {});
+  await pool.query(`ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS bounce_reason TEXT`).catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS email_logs (

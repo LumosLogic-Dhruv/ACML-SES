@@ -58,11 +58,19 @@ export async function logEmailFromSMTP(entry: {
   console.log(`[emailLog] SMTP email logged for messageId: ${entry.messageId}, recipient: ${entry.recipient}`);
 }
 
-export async function updateEmailEvent(messageId: string, event: 'delivered' | 'opened' | 'bounced'): Promise<void> {
-  const result = await pool.query(
-    `UPDATE email_logs SET ${event} = TRUE WHERE message_id = $1`,
-    [messageId]
-  );
+export async function updateEmailEvent(messageId: string, event: 'delivered' | 'opened' | 'bounced', bounceReason?: string): Promise<void> {
+  let result;
+  if (event === 'bounced' && bounceReason) {
+    result = await pool.query(
+      `UPDATE email_logs SET bounced = TRUE, bounce_reason = $2 WHERE message_id = $1`,
+      [messageId, bounceReason]
+    );
+  } else {
+    result = await pool.query(
+      `UPDATE email_logs SET ${event} = TRUE WHERE message_id = $1`,
+      [messageId]
+    );
+  }
   if (result.rowCount && result.rowCount > 0) {
     console.log(`[emailLog] updated ${event} for messageId: ${messageId}`);
   } else {
@@ -89,7 +97,7 @@ export async function getRecentEmails(
   const { rows } = await pool.query(
     `SELECT id, message_id AS "messageId", recipient, subject,
             sent_at AS "sentAt", status, job_id AS "jobId",
-            client_id AS "clientId", delivered, opened, bounced
+            client_id AS "clientId", delivered, opened, bounced, bounce_reason AS "bounceReason"
      FROM email_logs
      WHERE ${conditions.join(' AND ')}
      ORDER BY sent_at DESC

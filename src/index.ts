@@ -17,6 +17,7 @@ import statsRoutes from './routes/stats';
 import webhookRoutes from './routes/webhook';
 import docsRoutes from './routes/docs';
 import settingsRoutes from './routes/settings';
+import suppressionRoutes from './routes/suppression';
 import { startReportCron } from './workers/reportCron';
 
 const app = express();
@@ -58,6 +59,7 @@ app.use('/auth', authRoutes);
 
 // Admin routes — JWT + admin role required
 app.use('/admin', requireAuth, requireAdminRole, adminRoutes);
+app.use('/admin/suppression', requireAuth, requireAdminRole, suppressionRoutes);
 
 // Client self-service routes — JWT only (scoped to their own client_id)
 app.use('/client', requireAuth, clientRoutes);

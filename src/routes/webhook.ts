@@ -112,7 +112,9 @@ router.post('/ses', async (req: Request, res: Response) => {
     } else if (eventType === 'Open') {
       await updateEmailEvent(mail.messageId, 'opened');
     } else if (eventType === 'Bounce') {
-      await updateEmailEvent(mail.messageId, 'bounced');
+      const bounceData = message.bounce;
+      const diagnosticCode: string | undefined = bounceData?.bouncedRecipients?.[0]?.diagnosticCode || bounceData?.errorMessage;
+      await updateEmailEvent(mail.messageId, 'bounced', diagnosticCode);
     } else if (eventType === 'Complaint') {
       // log only — no suppression
     }

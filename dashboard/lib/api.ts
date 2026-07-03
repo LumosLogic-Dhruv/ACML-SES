@@ -53,7 +53,7 @@ export interface AdminClientEmails {
   offset: number
   emails: {
     id: string; messageId: string; recipient: string; subject: string
-    sentAt: string; status: string; delivered: boolean; bounced: boolean
+    sentAt: string; status: string; delivered: boolean; bounced: boolean; bounceReason?: string
   }[]
 }
 
@@ -285,6 +285,27 @@ export async function getStats(params: { days?: number; from?: string; to?: stri
   const res = await fetchWithTimeout(`${BASE_URL}/api/stats?${query}`)
   if (!res.ok) throw new Error('Failed to fetch stats')
   return res.json()
+}
+
+// ── Suppression List ─────────────────────────────────────────────────────────
+export interface SuppressionItem {
+  email: string
+  reason: string
+  suppressedAt: string
+}
+
+export async function getSuppressionList(): Promise<{ items: SuppressionItem[]; nextToken: string | null }> {
+  const res = await fetchAdmin('/admin/suppression')
+  if (!res.ok) throw new Error('Failed to fetch suppression list')
+  return res.json()
+}
+
+export async function removeFromSuppressionList(email: string): Promise<void> {
+  const res = await fetchAdmin(`/admin/suppression/${encodeURIComponent(email)}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { error?: string }).error || 'Failed to remove from suppression list')
+  }
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────

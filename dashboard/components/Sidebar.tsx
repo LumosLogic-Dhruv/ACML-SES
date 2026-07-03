@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Mail, LogOut, Key, Users, Building2, X, BookOpen, FileBarChart2, Settings } from "lucide-react"
+import { LayoutDashboard, Mail, LogOut, Key, Users, Building2, X, BookOpen, FileBarChart2, Settings, ShieldOff } from "lucide-react"
 import { clearAuth } from "@/lib/auth"
 import { useClient } from "@/lib/clientContext"
 
@@ -14,12 +14,13 @@ const clientNavItems = [
 ]
 
 const adminNavItems = [
-  { label: "Dashboard",     href: "/",          icon: LayoutDashboard },
-  { label: "Recent Emails", href: "/recent",    icon: Mail },
-  { label: "Reports",       href: "/reports",   icon: FileBarChart2 },
-  { label: "Clients",       href: "/clients",   icon: Key },
-  { label: "Users",         href: "/users",     icon: Users },
-  { label: "Settings",      href: "/settings",  icon: Settings },
+  { label: "Dashboard",     href: "/",             icon: LayoutDashboard },
+  { label: "Recent Emails", href: "/recent",       icon: Mail },
+  { label: "Reports",       href: "/reports",      icon: FileBarChart2 },
+  { label: "Clients",       href: "/clients",      icon: Key },
+  { label: "Users",         href: "/users",        icon: Users },
+  { label: "Suppression",   href: "/suppression",  icon: ShieldOff },
+  { label: "Settings",      href: "/settings",     icon: Settings },
 ]
 
 interface SidebarProps {

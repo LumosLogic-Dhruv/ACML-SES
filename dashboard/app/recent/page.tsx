@@ -26,6 +26,7 @@ interface EmailLogEntry {
   delivered?: boolean
   opened?: boolean
   bounced?: boolean
+  bounceReason?: string
 }
 
 function maskEmail(email: string): string {
@@ -89,7 +90,7 @@ function SkeletonCard() {
 function SkeletonRow() {
   return (
     <tr className="border-b border-[var(--border)]">
-      {[...Array(8)].map((_, i) => (
+      {[...Array(9)].map((_, i) => (
         <td key={i} className="px-4 py-3">
           <div className="h-4 rounded bg-[var(--muted)] animate-pulse" />
         </td>
@@ -373,6 +374,9 @@ export default function RecentEmailsPage() {
                   {email.delivered && <span className="text-emerald-500">• Delivered</span>}
                   {email.bounced   && <span className="text-red-500">• Bounced</span>}
                 </div>
+                {email.bounceReason && (
+                  <p className="text-xs text-red-400 mt-1 truncate">{email.bounceReason}</p>
+                )}
               </div>
             ))
           )}
@@ -390,6 +394,7 @@ export default function RecentEmailsPage() {
                 <th className="px-4 py-3 text-center font-medium text-[var(--muted-foreground)]">Sent</th>
                 <th className="px-4 py-3 text-center font-medium text-[var(--muted-foreground)]">Delivered</th>
                 <th className="px-4 py-3 text-center font-medium text-[var(--muted-foreground)]">Bounced</th>
+                <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Bounce Reason</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Time</th>
               </tr>
             </thead>
@@ -398,7 +403,7 @@ export default function RecentEmailsPage() {
                 [...Array(8)].map((_, i) => <SkeletonRow key={i} />)
               ) : paginatedEmails.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <div className="flex flex-col items-center justify-center py-16 gap-3 text-[var(--muted-foreground)]">
                       <Mail className="h-10 w-10 opacity-30" />
                       <p className="text-sm">No emails found for this period</p>
@@ -418,6 +423,15 @@ export default function RecentEmailsPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       {email.bounced ? <span className="text-red-500">✓</span> : <span className="text-[var(--muted-foreground)]">—</span>}
+                    </td>
+                    <td className="px-4 py-3 max-w-[200px]">
+                      {email.bounceReason ? (
+                        <span className="text-xs text-red-500 truncate block" title={email.bounceReason}>
+                          {email.bounceReason}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--muted-foreground)]">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-[var(--muted-foreground)] whitespace-nowrap">{formatTime(email.sentAt)}</td>
                   </tr>

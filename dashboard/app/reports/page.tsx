@@ -25,6 +25,7 @@ interface EmailLogEntry {
   delivered?: boolean
   opened?: boolean
   bounced?: boolean
+  bounceReason?: string
 }
 
 function maskEmail(email: string): string {
@@ -62,7 +63,7 @@ const LIMIT_OPTIONS = [100, 200, 500, 1000, 3000, 5000]
 
 // ── CSV Export ────────────────────────────────────────────────────────────────
 function exportCSV(emails: EmailLogEntry[], periodLabel: string) {
-  const headers = ["#", "Email", "Subject", "Status", "Delivered", "Bounced", "Time (IST)"]
+  const headers = ["#", "Email", "Subject", "Status", "Delivered", "Bounced", "Bounce Reason", "Time (IST)"]
   const rows = emails.map((e, i) => [
     i + 1,
     e.recipient,
@@ -70,6 +71,7 @@ function exportCSV(emails: EmailLogEntry[], periodLabel: string) {
     getEmailStatus(e),
     e.delivered ? "Yes" : "No",
     e.bounced ? "Yes" : "No",
+    e.bounceReason ? `"${e.bounceReason.replace(/"/g, '""')}"` : "",
     formatTime(e.sentAt),
   ])
   const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
@@ -554,6 +556,7 @@ export default function ReportsPage() {
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Status</th>
                 <th className="px-4 py-3 text-center font-medium text-[var(--muted-foreground)]">Delivered</th>
                 <th className="px-4 py-3 text-center font-medium text-[var(--muted-foreground)]">Bounced</th>
+                <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Bounce Reason</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Time</th>
               </tr>
             </thead>
@@ -561,7 +564,7 @@ export default function ReportsPage() {
               {loading ? (
                 [...Array(6)].map((_, i) => (
                   <tr key={i} className="border-b border-[var(--border)]">
-                    {[...Array(7)].map((__, j) => (
+                    {[...Array(8)].map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-4 rounded bg-[var(--muted)] animate-pulse" />
                       </td>
@@ -570,7 +573,7 @@ export default function ReportsPage() {
                 ))
               ) : filteredEmails.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="flex flex-col items-center justify-center py-16 gap-3 text-[var(--muted-foreground)]">
                       <FileBarChart2 className="h-10 w-10 opacity-30" />
                       <p className="text-sm">No emails for this period</p>
@@ -598,6 +601,15 @@ export default function ReportsPage() {
                       <td className="px-4 py-3 text-center">
                         {email.bounced ? <span className="text-red-500">✓</span> : <span className="text-[var(--muted-foreground)]">—</span>}
                       </td>
+                      <td className="px-4 py-3 max-w-[180px]">
+                        {email.bounceReason ? (
+                          <span className="text-xs text-red-500 truncate block" title={email.bounceReason}>
+                            {email.bounceReason}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--muted-foreground)]">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-[var(--muted-foreground)] whitespace-nowrap">{formatTime(email.sentAt)}</td>
                     </tr>
                   )
@@ -605,7 +617,7 @@ export default function ReportsPage() {
               )}
               {!loading && filteredEmails.length > 200 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-3 text-center text-xs text-[var(--muted-foreground)] border-t border-[var(--border)]">
+                  <td colSpan={8} className="px-4 py-3 text-center text-xs text-[var(--muted-foreground)] border-t border-[var(--border)]">
                     Showing first 200 of {filteredEmails.length} rows · Export CSV/PDF to see all
                   </td>
                 </tr>
