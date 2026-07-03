@@ -44,6 +44,17 @@ function formatTime(isoString: string): string {
   })
 }
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
+
+function getDateIST(isoString: string): string {
+  const istDate = new Date(new Date(isoString).getTime() + IST_OFFSET_MS)
+  return istDate.toISOString().split("T")[0]
+}
+
+function getTodayIST(): string {
+  return new Date(Date.now() + IST_OFFSET_MS).toISOString().split("T")[0]
+}
+
 type Preset = "all" | "1" | "7" | "30" | "90" | "custom"
 type StatusFilter = "all" | "sent" | "delivered" | "bounced" | "failed"
 
@@ -168,6 +179,11 @@ export default function RecentEmailsPage() {
     failed: emails.filter(e => getEmailStatus(e) === "failed").length,
   }
 
+  // Count for the selected day in IST
+  const selectedDateIST = preset === "custom" && customFrom ? customFrom : getTodayIST()
+  const dayCount = emails.filter(e => getDateIST(e.sentAt) === selectedDateIST).length
+  const dayLabel = selectedDateIST === getTodayIST() ? "Today" : new Date(selectedDateIST + "T00:00:00").toLocaleDateString("en-IN", { month: "short", day: "numeric" })
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
 
@@ -184,6 +200,12 @@ export default function RecentEmailsPage() {
                   Sent email history and delivery status
                 </p>
               </div>
+              {!loading && (
+                <div className="flex items-center gap-1.5 ml-2 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 shrink-0">
+                  <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{dayCount}</span>
+                  <span className="text-xs text-indigo-500 dark:text-indigo-500">{dayLabel} (IST)</span>
+                </div>
+              )}
             </div>
 
             {/* Controls — inline on desktop, stacked on mobile */}
