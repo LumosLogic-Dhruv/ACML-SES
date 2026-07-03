@@ -169,10 +169,10 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
   doc.setTextColor(148, 163, 184)
   doc.text("EMAIL LOGS", 14, tableStartY)
 
-  // Table header — widths: # 8, Recipient 46, Subject 56, Status 22, Del 14, Bounced 14, Time 22 = 182mm
+  // Table header — widths: # 8, Recipient 38, Subject 42, Status 18, Del 10, Bounced 10, Reason 28, Time 28 = 182mm
   const rowH = 7
-  const colXs = [14, 22, 68, 124, 146, 160, 174]
-  const colLabels = ["#", "Recipient", "Subject", "Status", "Del", "Bounced", "Time"]
+  const colXs = [14, 22, 60, 102, 120, 130, 140, 168]
+  const colLabels = ["#", "Recipient", "Subject", "Status", "Del", "Bnc", "Bounce Reason", "Time"]
   const headerY = tableStartY + 5
 
   doc.setFillColor(241, 245, 249)
@@ -227,12 +227,12 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
     doc.setTextColor(71, 85, 105); doc.setFontSize(6.5); doc.setFont("helvetica", "normal")
     doc.text(String(idx + 1), colXs[0] + 1, currentY + 5)
 
-    // Recipient — full email, truncate (46mm col)
-    const recipientTxt = email.recipient.length > 28 ? email.recipient.slice(0, 27) + "..." : email.recipient
+    // Recipient — truncate (38mm col ~24 chars)
+    const recipientTxt = email.recipient.length > 24 ? email.recipient.slice(0, 23) + "..." : email.recipient
     doc.text(recipientTxt, colXs[1] + 1, currentY + 5)
 
-    // Subject — truncate (56mm col, ~35 chars)
-    const subjectTxt = email.subject.length > 35 ? email.subject.slice(0, 34) + "..." : email.subject
+    // Subject — truncate (42mm col ~26 chars)
+    const subjectTxt = email.subject.length > 26 ? email.subject.slice(0, 25) + "..." : email.subject
     doc.text(subjectTxt, colXs[2] + 1, currentY + 5)
 
     // Status
@@ -247,10 +247,15 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
     doc.setTextColor(email.bounced ? 239 : 100, email.bounced ? 68 : 116, email.bounced ? 68 : 139)
     doc.text(email.bounced ? "Yes" : "No", colXs[5] + 1, currentY + 5)
 
+    // Bounce Reason — truncate (28mm col ~18 chars)
+    doc.setTextColor(239, 68, 68)
+    const reasonTxt = email.bounceReason ? (email.bounceReason.length > 18 ? email.bounceReason.slice(0, 17) + "..." : email.bounceReason) : "-"
+    doc.text(reasonTxt, colXs[6] + 1, currentY + 5)
+
     // Time
     doc.setTextColor(100, 116, 139)
     const timeStr = formatTime(email.sentAt)
-    doc.text(timeStr, colXs[6] + 1, currentY + 5)
+    doc.text(timeStr, colXs[7] + 1, currentY + 5)
 
     // Row divider
     doc.setDrawColor(226, 232, 240)

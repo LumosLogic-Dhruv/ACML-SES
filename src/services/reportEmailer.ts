@@ -11,6 +11,7 @@ interface EmailLogRow {
   delivered: boolean;
   bounced: boolean;
   sent_at: string;
+  bounce_reason?: string;
 }
 
 function getDisplayStatus(row: EmailLogRow): string {
@@ -25,13 +26,12 @@ function formatTimeIST(sentAt: string): string {
 }
 
 function generateCsvBuffer(rows: EmailLogRow[]): Buffer {
-  const header = '#,Recipient,Subject,Status,Delivered,Bounced,Time (IST)\n';
+  const header = '#,Recipient,Subject,Status,Delivered,Bounced,Bounce Reason,Time (IST)\n';
   const lines = rows.map((row, i) => {
     const status = getDisplayStatus(row);
     const time = formatTimeIST(row.sent_at);
-    // Escape fields that might contain commas
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    return `${i + 1},${escape(row.recipient)},${escape(row.subject)},${status},${row.delivered},${row.bounced},${escape(time)}`;
+    return `${i + 1},${escape(row.recipient)},${escape(row.subject)},${status},${row.delivered},${row.bounced},${escape(row.bounce_reason || '')},${escape(time)}`;
   });
   return Buffer.from(header + lines.join('\n'), 'utf-8');
 }
@@ -164,11 +164,12 @@ function generatePdfBuffer(params: {
     // Table header
     const colDefs = [
       { label: '#', w: 24 },
-      { label: 'Recipient', w: 150 },
-      { label: 'Subject', w: 160 },
-      { label: 'Status', w: 58 },
-      { label: 'Delivered', w: 56 },
-      { label: 'Bounced', w: 50 },
+      { label: 'Recipient', w: 130 },
+      { label: 'Subject', w: 120 },
+      { label: 'Status', w: 50 },
+      { label: 'Delivered', w: 44 },
+      { label: 'Bounced', w: 44 },
+      { label: 'Bounce Reason', w: 60 },
       { label: 'Time (IST)', w: 0 },  // fill remainder
     ];
     // Calculate last col width
@@ -220,6 +221,7 @@ function generatePdfBuffer(params: {
         status,
         row.delivered ? 'Yes' : 'No',
         row.bounced ? 'Yes' : 'No',
+        row.bounce_reason || '-',
         time,
       ];
 
@@ -336,7 +338,7 @@ export async function sendReportEmail(params: {
   const { clientId, clientName, reportEmail, type, fromDate, toDate } = params;
 
   const { rows } = await pool.query<EmailLogRow>(
-    `SELECT recipient, subject, status, delivered, bounced, sent_at
+    `SELECT recipient, subject, status, delivered, bounced, bounce_reason, sent_at
      FROM email_logs
      WHERE client_id = $1
        AND sent_at >= $2::date
