@@ -11,6 +11,7 @@ import {
   Clock,
   ServerOff,
   Loader2,
+  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -112,6 +113,82 @@ export default function Dashboard() {
     if (customFrom && customTo) fetchData()
   }
 
+  const exportDashboardPDF = () => {
+    if (!stats) return
+    const { sent, delivered, bounced, failed, delivery_rate, bounce_rate } = stats.summary
+    const clientName = selectedClientName || "Dashboard"
+    const generatedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+    const presetLabelMap: Record<string, string> = { "1": "Today", "7": "Last 7 days", "30": "Last 30 days", "90": "Last 3 months", "custom": "Custom range" }
+    const periodLabel = presetLabelMap[preset] || preset
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Email Performance Report</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; background: #fff; padding: 40px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 3px solid #6366f1; }
+    .brand { font-size: 24px; font-weight: 900; color: #6366f1; }
+    .brand span { color: #1e293b; }
+    .meta-right { text-align: right; }
+    .report-title { font-size: 18px; font-weight: 700; }
+    .report-sub { font-size: 12px; color: #64748b; margin-top: 3px; }
+    .section-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; margin-top: 28px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .stat-card { border-radius: 12px; padding: 18px; text-align: center; position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .stat-card.blue { background: #eff6ff; } .stat-card.blue::before { background: #6366f1; }
+    .stat-card.green { background: #f0fdf4; } .stat-card.green::before { background: #10b981; }
+    .stat-card.red { background: #fef2f2; } .stat-card.red::before { background: #ef4444; }
+    .stat-card.orange { background: #fff7ed; } .stat-card.orange::before { background: #f97316; }
+    .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+    .stat-value { font-size: 32px; font-weight: 900; margin: 8px 0 4px; }
+    .stat-value.blue { color: #6366f1; } .stat-value.green { color: #10b981; }
+    .stat-value.red { color: #ef4444; } .stat-value.orange { color: #f97316; }
+    .rate-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .rate-pill.green { background: #bbf7d0; color: #14532d; }
+    .rate-pill.red { background: #fecaca; color: #7f1d1d; }
+    .rate-pill.gray { background: #e2e8f0; color: #475569; }
+    .banner { margin-top: 20px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 12px; padding: 20px 24px; color: white; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .banner-item .b-label { font-size: 11px; opacity: 0.75; font-weight: 600; text-transform: uppercase; }
+    .banner-item .b-value { font-size: 22px; font-weight: 800; margin-top: 4px; }
+    .footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; }
+    .footer-brand { font-weight: 700; color: #6366f1; }
+    @media print { body { padding: 24px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div><div class="brand">Lumos<span>Mails</span></div><div style="font-size:11px;color:#94a3b8;margin-top:3px;">by LumosLogic</div></div>
+    <div class="meta-right">
+      <div class="report-title">Email Performance Report</div>
+      <div class="report-sub">${clientName} · ${periodLabel}</div>
+      <div class="report-sub" style="margin-top:2px;">Generated: ${generatedAt} IST</div>
+    </div>
+  </div>
+  <div class="section-label">Performance Summary</div>
+  <div class="stats-grid">
+    <div class="stat-card blue"><div class="stat-label">Total Sent</div><div class="stat-value blue">${sent}</div><div class="rate-pill gray">emails</div></div>
+    <div class="stat-card green"><div class="stat-label">Delivered</div><div class="stat-value green">${delivered}</div><div class="rate-pill green">${delivery_rate}% rate</div></div>
+    <div class="stat-card red"><div class="stat-label">Bounced</div><div class="stat-value red">${bounced}</div><div class="rate-pill red">${bounce_rate}% rate</div></div>
+    <div class="stat-card orange"><div class="stat-label">Failed</div><div class="stat-value orange">${failed}</div><div class="rate-pill gray">emails</div></div>
+  </div>
+  <div class="banner">
+    <div class="banner-item"><div class="b-label">Period</div><div class="b-value" style="font-size:15px;margin-top:6px;">${periodLabel}</div></div>
+    <div class="banner-item"><div class="b-label">Delivery Rate</div><div class="b-value">${delivery_rate}%</div></div>
+    <div class="banner-item"><div class="b-label">Bounce Rate</div><div class="b-value">${bounce_rate}%</div></div>
+    <div class="banner-item"><div class="b-label">Success</div><div class="b-value">${delivered}<span style="font-size:14px;opacity:0.7"> / ${sent}</span></div></div>
+  </div>
+  <div class="footer"><div class="footer-brand">LumosMails</div><div>Confidential · For internal use only</div><div>${new Date().toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}</div></div>
+</body>
+</html>`
+
+    const win = window.open('', '_blank', 'width=960,height=720')
+    if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 600) }
+  }
+
   const serverStatus =
     health && typeof health === "object" && "status" in health
       ? String((health as { status: string }).status)
@@ -165,6 +242,12 @@ export default function Dashboard() {
                   <SelectItem value="custom">Custom range</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Button variant="outline" size="sm" onClick={exportDashboardPDF} disabled={!stats || loading}
+                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
 
               <Button variant="outline" size="sm" onClick={() => fetchData(true)} disabled={refreshing || loading}>
                 {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
