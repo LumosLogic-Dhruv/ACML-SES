@@ -27,6 +27,12 @@ interface EmailLogEntry {
   bounced?: boolean
 }
 
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@")
+  if (local.length <= 2) return `${local[0]}***@${domain}`
+  return `${local.slice(0, 2)}***@${domain}`
+}
+
 function formatTime(isoString: string): string {
   const date = new Date(isoString)
   return date.toLocaleString("en-US", {
@@ -520,7 +526,7 @@ export default function ReportsPage() {
                         : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                       }`}>{st}</span>
                     </div>
-                    <p className="text-xs font-mono text-[var(--foreground)] truncate mb-0.5">{email.recipient}</p>
+                    <p className="text-xs font-mono text-[var(--foreground)] truncate mb-0.5">{maskEmail(email.recipient)}</p>
                     <p className="text-sm truncate mb-1">{email.subject}</p>
                     <p className="text-xs text-[var(--muted-foreground)]">{formatTime(email.sentAt)}</p>
                   </div>
@@ -573,7 +579,7 @@ export default function ReportsPage() {
                   return (
                     <tr key={email.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--muted)]/30 transition-colors">
                       <td className="px-4 py-3 text-[var(--muted-foreground)]">{idx + 1}</td>
-                      <td className="px-4 py-3 font-mono text-xs">{email.recipient}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{maskEmail(email.recipient)}</td>
                       <td className="px-4 py-3 max-w-xs truncate">{email.subject}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
