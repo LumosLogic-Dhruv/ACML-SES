@@ -225,9 +225,8 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
     doc.setTextColor(71, 85, 105); doc.setFontSize(6.5); doc.setFont("helvetica", "normal")
     doc.text(String(idx + 1), colXs[0] + 1, currentY + 5)
 
-    // Recipient — masked + truncate (46mm col)
-    const masked = maskEmail(email.recipient)
-    const recipientTxt = masked.length > 28 ? masked.slice(0, 27) + "..." : masked
+    // Recipient — full email, truncate (46mm col)
+    const recipientTxt = email.recipient.length > 28 ? email.recipient.slice(0, 27) + "..." : email.recipient
     doc.text(recipientTxt, colXs[1] + 1, currentY + 5)
 
     // Subject — truncate (56mm col, ~35 chars)
