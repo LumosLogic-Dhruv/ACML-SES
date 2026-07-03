@@ -167,10 +167,10 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
   doc.setTextColor(148, 163, 184)
   doc.text("EMAIL LOGS", 14, tableStartY)
 
-  // Table header — widths: # 8, Recipient 48, Subject 60, Status 22, Del 14, Time 30 = 182mm
+  // Table header — widths: # 8, Recipient 46, Subject 56, Status 22, Del 14, Bounced 14, Time 22 = 182mm
   const rowH = 7
-  const colXs = [14, 22, 70, 130, 152, 166]
-  const colLabels = ["#", "Recipient", "Subject", "Status", "Del", "Time"]
+  const colXs = [14, 22, 68, 124, 146, 160, 174]
+  const colLabels = ["#", "Recipient", "Subject", "Status", "Del", "Bounced", "Time"]
   const headerY = tableStartY + 5
 
   doc.setFillColor(241, 245, 249)
@@ -225,26 +225,31 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
     doc.setTextColor(71, 85, 105); doc.setFontSize(6.5); doc.setFont("helvetica", "normal")
     doc.text(String(idx + 1), colXs[0] + 1, currentY + 5)
 
-    // Recipient — truncate (48mm col, ~30 chars at 6.5pt)
-    const recipientTxt = email.recipient.length > 30 ? email.recipient.slice(0, 29) + "..." : email.recipient
+    // Recipient — masked + truncate (46mm col)
+    const masked = maskEmail(email.recipient)
+    const recipientTxt = masked.length > 28 ? masked.slice(0, 27) + "..." : masked
     doc.text(recipientTxt, colXs[1] + 1, currentY + 5)
 
-    // Subject — truncate (60mm col, ~38 chars)
-    const subjectTxt = email.subject.length > 38 ? email.subject.slice(0, 37) + "..." : email.subject
+    // Subject — truncate (56mm col, ~35 chars)
+    const subjectTxt = email.subject.length > 35 ? email.subject.slice(0, 34) + "..." : email.subject
     doc.text(subjectTxt, colXs[2] + 1, currentY + 5)
 
-    // Status chip
+    // Status
     doc.setTextColor(...statusColor); doc.setFont("helvetica", "bold")
     doc.text(st.charAt(0).toUpperCase() + st.slice(1), colXs[3] + 1, currentY + 5)
 
-    // Delivered — use plain ASCII
+    // Delivered
     doc.setTextColor(16, 185, 129); doc.setFont("helvetica", "normal")
     doc.text(email.delivered ? "Yes" : "No", colXs[4] + 1, currentY + 5)
+
+    // Bounced
+    doc.setTextColor(email.bounced ? 239 : 100, email.bounced ? 68 : 116, email.bounced ? 68 : 139)
+    doc.text(email.bounced ? "Yes" : "No", colXs[5] + 1, currentY + 5)
 
     // Time
     doc.setTextColor(100, 116, 139)
     const timeStr = formatTime(email.sentAt)
-    doc.text(timeStr, colXs[5] + 1, currentY + 5)
+    doc.text(timeStr, colXs[6] + 1, currentY + 5)
 
     // Row divider
     doc.setDrawColor(226, 232, 240)
