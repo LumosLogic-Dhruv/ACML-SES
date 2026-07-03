@@ -91,8 +91,8 @@ async function runMonthlyReport(): Promise<void> {
 }
 
 export function startReportCron(): void {
-  // Daily: 14:05 UTC = 7:35 PM IST (TEMP for testing, change back to '30 2 * * *' for production)
-  cron.schedule('15 14 * * *', () => {
+  // Daily: 2:30 AM UTC = 8:00 AM IST
+  cron.schedule('30 2 * * *', () => {
     runDailyReport().catch(err => {
       console.error('[reportCron] Daily cron error:', err instanceof Error ? err.message : err);
     });

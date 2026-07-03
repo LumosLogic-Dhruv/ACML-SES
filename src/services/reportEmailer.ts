@@ -387,7 +387,7 @@ export async function sendReportEmail(params: {
   const pdfFilename = `lumosmails-report-${clientName.replace(/\s+/g, '-').toLowerCase()}-${dateStr}.pdf`;
 
   await sendEmail({
-    from: config.reportSmtp.from || config.ses.defaultFrom,
+    from: config.reportSmtp.from ? `LumosMails Reports <${config.reportSmtp.from}>` : config.ses.defaultFrom,
     to: reportEmail,
     subject,
     body,
