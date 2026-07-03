@@ -196,17 +196,42 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Report Email */}
-        <EmailCard
-          icon={<Mail className="h-4.5 w-4.5 text-indigo-500" />}
-          title="Report Email"
-          description="Daily and monthly email reports (PDF + CSV) will be sent to this address every day at 8:00 AM IST."
-          placeholder="reports@yourdomain.com"
-          field={reportField}
-          loading={loading}
-          accentColor="bg-indigo-500/10"
-          {...reportHandlers}
-        />
+        {/* Report Email + Schedule side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+          <EmailCard
+            icon={<Mail className="h-4.5 w-4.5 text-indigo-500" />}
+            title="Report Email"
+            description="Daily and monthly email reports (PDF + CSV) will be sent to this address every day at 8:00 AM IST."
+            placeholder="reports@yourdomain.com"
+            field={reportField}
+            loading={loading}
+            accentColor="bg-indigo-500/10"
+            {...reportHandlers}
+          />
+
+          {/* Report Schedule */}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--muted)]/30 p-5 sm:p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="h-9 w-9 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                <Settings className="h-4 w-4 text-indigo-500" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold">Report Schedule</h2>
+                <p className="text-xs text-[var(--muted-foreground)] mt-0.5">When reports are automatically sent.</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+                <span className="text-indigo-500 font-bold text-xs mt-0.5 w-12 shrink-0">Daily</span>
+                <p className="text-xs text-[var(--muted-foreground)]">Every day at <strong className="text-[var(--foreground)]">8:00 AM IST</strong> — previous day's activity (PDF + CSV)</p>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+                <span className="text-indigo-500 font-bold text-xs mt-0.5 w-12 shrink-0">Monthly</span>
+                <p className="text-xs text-[var(--muted-foreground)]">1st of every month at <strong className="text-[var(--foreground)]">8:00 AM IST</strong> — full previous month (PDF + CSV)</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Hard Bounce Alert */}
         <EmailCard
@@ -231,21 +256,6 @@ export default function SettingsPage() {
           accentColor="bg-yellow-500/10"
           {...softHandlers}
         />
-
-        {/* Info card */}
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--muted)]/30 p-4">
-          <p className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wide mb-2">Report Schedule</p>
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
-              <span className="text-indigo-500 font-bold text-xs mt-0.5">Daily</span>
-              <p className="text-xs text-[var(--muted-foreground)]">Every day at <strong className="text-[var(--foreground)]">8:00 AM IST</strong> — previous day's email activity (PDF + CSV)</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-indigo-500 font-bold text-xs mt-0.5">Monthly</span>
-              <p className="text-xs text-[var(--muted-foreground)]">1st of every month at <strong className="text-[var(--foreground)]">8:00 AM IST</strong> — full previous month report (PDF + CSV)</p>
-            </div>
-          </div>
-        </div>
       </main>
     </div>
   )
