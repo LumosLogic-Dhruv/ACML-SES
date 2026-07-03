@@ -189,7 +189,7 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <main className="px-4 sm:px-6 py-6 max-w-2xl space-y-4">
+      <main className="px-4 sm:px-6 py-6 max-w-4xl space-y-4">
         {pageError && (
           <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
             <AlertCircle className="h-4 w-4 shrink-0" />{pageError}
@@ -233,29 +233,29 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Hard Bounce Alert */}
-        <EmailCard
-          icon={<AlertTriangle className="h-4.5 w-4.5 text-red-500" />}
-          title="Hard Bounce Alert Email (ID X)"
-          description="Get an instant alert when a hard bounce (permanent failure — invalid or unknown email address) is detected."
-          placeholder="bounces@yourdomain.com"
-          field={hardField}
-          loading={loading}
-          accentColor="bg-red-500/10"
-          {...hardHandlers}
-        />
-
-        {/* Soft Bounce Alert */}
-        <EmailCard
-          icon={<AlertTriangle className="h-4.5 w-4.5 text-yellow-500" />}
-          title="Soft Bounce Alert Email (ID Z)"
-          description="Get an instant alert when a soft bounce (temporary failure — mailbox full, server down) is detected."
-          placeholder="soft-bounces@yourdomain.com"
-          field={softField}
-          loading={loading}
-          accentColor="bg-yellow-500/10"
-          {...softHandlers}
-        />
+        {/* Hard + Soft Bounce side by side */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+          <EmailCard
+            icon={<AlertTriangle className="h-4.5 w-4.5 text-red-500" />}
+            title="Hard Bounce Alert Email (ID X)"
+            description="Get an instant alert when a hard bounce (permanent failure — invalid or unknown email address) is detected."
+            placeholder="bounces@yourdomain.com"
+            field={hardField}
+            loading={loading}
+            accentColor="bg-red-500/10"
+            {...hardHandlers}
+          />
+          <EmailCard
+            icon={<AlertTriangle className="h-4.5 w-4.5 text-yellow-500" />}
+            title="Soft Bounce Alert Email (ID Z)"
+            description="Get an instant alert when a soft bounce (temporary failure — mailbox full, server down) is detected."
+            placeholder="soft-bounces@yourdomain.com"
+            field={softField}
+            loading={loading}
+            accentColor="bg-yellow-500/10"
+            {...softHandlers}
+          />
+        </div>
       </main>
     </div>
   )
