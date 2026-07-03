@@ -24,7 +24,13 @@ interface EmailLogEntry {
   delivered?: boolean
   bounced?: boolean
   bounceReason?: string
+  bounceType?: string // Permanent | Transient | Undetermined
 }
+
+type BounceFilter = "all" | "hard" | "soft"
+
+function isHard(e: EmailLogEntry) { return e.bounceType === "Permanent" }
+function isSoft(e: EmailLogEntry) { return e.bounceType === "Transient" || (e.bounceType !== "Permanent" && e.bounceType != null) }
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@")
@@ -47,16 +53,11 @@ type Preset = "1" | "7" | "30" | "90" | "custom"
 const LIMIT_OPTIONS = [100, 200, 500, 1000, 3000, 5000]
 
 function exportCSV(emails: EmailLogEntry[], periodLabel: string) {
-  const headers = ["#", "Email", "Subject", "Bounce Reason", "Time (IST)"]
+  const headers = ["#", "Email", "Subject", "Type", "Bounce Reason", "Time (IST)"]
   const rows = emails.map((e, i) => {
     const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
-    return [
-      i + 1,
-      escape(e.recipient),
-      escape(e.subject),
-      escape(e.bounceReason || ""),
-      escape(formatTime(e.sentAt)),
-    ].join(",")
+    const type = e.bounceType === "Permanent" ? "Hard" : e.bounceType === "Transient" ? "Soft" : "Unknown"
+    return [i + 1, escape(e.recipient), escape(e.subject), type, escape(e.bounceReason || ""), escape(formatTime(e.sentAt))].join(",")
   })
   const csv = [headers.join(","), ...rows].join("\n")
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" })
@@ -68,10 +69,16 @@ function exportCSV(emails: EmailLogEntry[], periodLabel: string) {
   URL.revokeObjectURL(url)
 }
 
+function BounceBadge({ bounceType }: { bounceType?: string }) {
+  if (bounceType === "Permanent") return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-500/15 text-red-500">Hard</span>
+  if (bounceType === "Transient") return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-600">Soft</span>
+  return <span className="inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">Unknown</span>
+}
+
 function SkeletonRow() {
   return (
     <tr className="border-b border-[var(--border)]">
-      {[...Array(5)].map((_, i) => (
+      {[...Array(6)].map((_, i) => (
         <td key={i} className="px-4 py-3">
           <div className="h-4 rounded bg-[var(--muted)] animate-pulse" />
         </td>
@@ -90,6 +97,7 @@ export default function BouncesPage() {
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
   const [search, setSearch] = useState("")
+  const [bounceFilter, setBounceFilter] = useState<BounceFilter>("all")
 
   const fetchBounces = useCallback(async () => {
     setLoading(true)
@@ -129,23 +137,24 @@ export default function BouncesPage() {
     if (customFrom && customTo) fetchBounces()
   }
 
+  const hardCount = bounces.filter(isHard).length
+  const softCount = bounces.filter(isSoft).length
+
   const searchTerm = search.trim().toLowerCase()
-  const filtered = bounces.filter(e =>
-    !searchTerm ||
-    e.recipient.toLowerCase().includes(searchTerm) ||
-    e.subject.toLowerCase().includes(searchTerm) ||
-    (e.bounceReason?.toLowerCase().includes(searchTerm) ?? false)
-  )
+  const filtered = bounces.filter(e => {
+    if (bounceFilter === "hard" && !isHard(e)) return false
+    if (bounceFilter === "soft" && !isSoft(e)) return false
+    return !searchTerm ||
+      e.recipient.toLowerCase().includes(searchTerm) ||
+      e.subject.toLowerCase().includes(searchTerm) ||
+      (e.bounceReason?.toLowerCase().includes(searchTerm) ?? false)
+  })
 
   const presetLabel: Record<Preset, string> = {
     "1": "Today", "7": "Last 7 days", "30": "Last 30 days",
     "90": "Last 3 months",
     "custom": customFrom && customTo ? `${customFrom} to ${customTo}` : "Custom",
   }
-
-  // Count by reason type
-  const hardBounces = bounces.filter(e => e.bounceReason?.toLowerCase().includes("550") || e.bounceReason?.toLowerCase().includes("user") || e.bounceReason?.toLowerCase().includes("invalid")).length
-  const softBounces = bounces.length - hardBounces
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -211,42 +220,71 @@ export default function BouncesPage() {
           </div>
         )}
 
-        {/* Stats */}
+        {/* Stats — clickable filters */}
         {!loading && (
           <div className="grid grid-cols-3 gap-3 mb-6">
-            <div className="rounded-xl border border-[var(--border)] p-4 bg-red-500/10">
+            <button
+              onClick={() => setBounceFilter("all")}
+              className={`rounded-xl border p-4 text-left transition-all ${bounceFilter === "all" ? "border-red-400 bg-red-500/15 ring-1 ring-red-400" : "border-[var(--border)] bg-red-500/10 hover:bg-red-500/15"}`}
+            >
               <p className="text-xs text-[var(--muted-foreground)] mb-1">Total Bounced</p>
               <p className="text-2xl font-bold text-red-500">{bounces.length}</p>
-            </div>
-            <div className="rounded-xl border border-[var(--border)] p-4 bg-orange-500/10">
+            </button>
+            <button
+              onClick={() => setBounceFilter(bounceFilter === "hard" ? "all" : "hard")}
+              className={`rounded-xl border p-4 text-left transition-all ${bounceFilter === "hard" ? "border-orange-400 bg-orange-500/15 ring-1 ring-orange-400" : "border-[var(--border)] bg-orange-500/10 hover:bg-orange-500/15"}`}
+            >
               <p className="text-xs text-[var(--muted-foreground)] mb-1">Hard Bounces</p>
-              <p className="text-2xl font-bold text-orange-500">{hardBounces}</p>
-              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">Invalid / unknown</p>
-            </div>
-            <div className="rounded-xl border border-[var(--border)] p-4 bg-yellow-500/10">
+              <p className="text-2xl font-bold text-orange-500">{hardCount}</p>
+              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">Permanent failure</p>
+            </button>
+            <button
+              onClick={() => setBounceFilter(bounceFilter === "soft" ? "all" : "soft")}
+              className={`rounded-xl border p-4 text-left transition-all ${bounceFilter === "soft" ? "border-yellow-400 bg-yellow-500/15 ring-1 ring-yellow-400" : "border-[var(--border)] bg-yellow-500/10 hover:bg-yellow-500/15"}`}
+            >
               <p className="text-xs text-[var(--muted-foreground)] mb-1">Soft Bounces</p>
-              <p className="text-2xl font-bold text-yellow-500">{softBounces}</p>
-              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">Temporary / other</p>
-            </div>
+              <p className="text-2xl font-bold text-yellow-500">{softCount}</p>
+              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">Temporary failure</p>
+            </button>
           </div>
         )}
 
-        {/* Search + Export */}
+        {/* Search + Filter chips + Export */}
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted-foreground)]" />
-            <input
-              type="text"
-              placeholder="Search email, subject, reason..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9 pr-8 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 w-64"
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--muted-foreground)]" />
+              <input
+                type="text"
+                placeholder="Search email, subject, reason..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 pr-8 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 w-56"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {/* Filter chips */}
+            <div className="flex items-center gap-1.5">
+              {(["all", "hard", "soft"] as BounceFilter[]).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setBounceFilter(f)}
+                  className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
+                    bounceFilter === f
+                      ? f === "hard" ? "bg-red-500 text-white border-red-500"
+                        : f === "soft" ? "bg-yellow-500 text-white border-yellow-500"
+                        : "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]"
+                      : "border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  }`}
+                >
+                  {f === "all" ? "All" : f === "hard" ? "Hard" : "Soft"}
+                </button>
+              ))}
+            </div>
           </div>
           <Button
             variant="outline"
@@ -263,6 +301,7 @@ export default function BouncesPage() {
         {!loading && (
           <p className="text-sm text-[var(--muted-foreground)] mb-4">
             {filtered.length} bounce{filtered.length !== 1 ? "s" : ""}
+            {bounceFilter !== "all" && ` · ${bounceFilter} only`}
             {search && ` · matching "${search}"`}
           </p>
         )}
@@ -288,10 +327,11 @@ export default function BouncesPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[10px] text-[var(--muted-foreground)]">#{idx + 1}</span>
                   <span className="font-mono text-xs text-[var(--foreground)] truncate">{maskEmail(email.recipient)}</span>
+                  <BounceBadge bounceType={email.bounceType} />
                 </div>
                 <p className="text-sm truncate mb-1">{email.subject}</p>
                 {email.bounceReason && (
-                  <p className="text-xs text-red-500 truncate mb-1">{email.bounceReason}</p>
+                  <p className="text-xs text-red-500 break-words leading-relaxed mb-1">{email.bounceReason}</p>
                 )}
                 <p className="text-xs text-[var(--muted-foreground)]">{formatTime(email.sentAt)}</p>
               </div>
@@ -307,6 +347,7 @@ export default function BouncesPage() {
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)] w-10">#</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Email</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Subject</th>
+                <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)] whitespace-nowrap">Type</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Bounce Reason</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)] whitespace-nowrap">Time</th>
               </tr>
@@ -316,7 +357,7 @@ export default function BouncesPage() {
                 [...Array(6)].map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <div className="flex flex-col items-center justify-center py-16 gap-3 text-[var(--muted-foreground)]">
                       <AlertTriangle className="h-10 w-10 opacity-30" />
                       <p className="text-sm">No bounces for this period</p>
@@ -328,12 +369,11 @@ export default function BouncesPage() {
                   <tr key={email.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--muted)]/30 transition-colors">
                     <td className="px-4 py-3 text-[var(--muted-foreground)]">{idx + 1}</td>
                     <td className="px-4 py-3 font-mono text-xs">{maskEmail(email.recipient)}</td>
-                    <td className="px-4 py-3 max-w-[200px] truncate">{email.subject}</td>
-                    <td className="px-4 py-3 max-w-[320px]">
+                    <td className="px-4 py-3 max-w-[180px] truncate">{email.subject}</td>
+                    <td className="px-4 py-3"><BounceBadge bounceType={email.bounceType} /></td>
+                    <td className="px-4 py-3 max-w-[300px]">
                       {email.bounceReason ? (
-                        <span className="text-xs text-red-500 break-words leading-relaxed">
-                          {email.bounceReason}
-                        </span>
+                        <span className="text-xs text-red-500 break-words leading-relaxed">{email.bounceReason}</span>
                       ) : (
                         <span className="text-xs text-[var(--muted-foreground)]">No reason captured</span>
                       )}

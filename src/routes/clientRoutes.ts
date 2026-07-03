@@ -74,7 +74,7 @@ router.get('/emails', async (req: Request, res: Response) => {
   const { rows } = await pool.query(
     `SELECT id, message_id AS "messageId", recipient, subject,
             sent_at AS "sentAt", status, job_id AS "jobId",
-            delivered, opened, bounced, bounce_reason AS "bounceReason"
+            delivered, opened, bounced, bounce_reason AS "bounceReason", bounce_type AS "bounceType"
      FROM email_logs
      WHERE client_id = $1 ${extraWhere}
      ORDER BY sent_at DESC

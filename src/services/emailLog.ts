@@ -58,12 +58,12 @@ export async function logEmailFromSMTP(entry: {
   console.log(`[emailLog] SMTP email logged for messageId: ${entry.messageId}, recipient: ${entry.recipient}`);
 }
 
-export async function updateEmailEvent(messageId: string, event: 'delivered' | 'opened' | 'bounced', bounceReason?: string): Promise<void> {
+export async function updateEmailEvent(messageId: string, event: 'delivered' | 'opened' | 'bounced', bounceReason?: string, bounceType?: string): Promise<void> {
   let result;
-  if (event === 'bounced' && bounceReason) {
+  if (event === 'bounced') {
     result = await pool.query(
-      `UPDATE email_logs SET bounced = TRUE, bounce_reason = $2 WHERE message_id = $1`,
-      [messageId, bounceReason]
+      `UPDATE email_logs SET bounced = TRUE, bounce_reason = $2, bounce_type = $3 WHERE message_id = $1`,
+      [messageId, bounceReason ?? null, bounceType ?? null]
     );
   } else {
     result = await pool.query(

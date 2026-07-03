@@ -130,7 +130,7 @@ router.get('/logs', async (req: Request, res: Response, next: NextFunction) => {
       pool.query(
         `SELECT id, message_id AS "messageId", recipient, subject,
                 sent_at AS "sentAt", status,
-                delivered, opened, bounced, bounce_reason AS "bounceReason"
+                delivered, opened, bounced, bounce_reason AS "bounceReason", bounce_type AS "bounceType"
          FROM email_logs
          WHERE ${where}
          ORDER BY sent_at DESC

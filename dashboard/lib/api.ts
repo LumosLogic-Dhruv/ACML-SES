@@ -53,7 +53,7 @@ export interface AdminClientEmails {
   offset: number
   emails: {
     id: string; messageId: string; recipient: string; subject: string
-    sentAt: string; status: string; delivered: boolean; bounced: boolean; bounceReason?: string
+    sentAt: string; status: string; delivered: boolean; bounced: boolean; bounceReason?: string; bounceType?: string
   }[]
 }
 

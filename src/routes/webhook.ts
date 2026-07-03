@@ -155,7 +155,7 @@ router.post('/ses', async (req: Request, res: Response) => {
       const bounceData = message.bounce;
       const bounceType: string = bounceData?.bounceType ?? 'Undetermined'; // Permanent | Transient | Undetermined
       const diagnosticCode: string | undefined = bounceData?.bouncedRecipients?.[0]?.diagnosticCode || bounceData?.errorMessage;
-      await updateEmailEvent(mail.messageId, 'bounced', diagnosticCode);
+      await updateEmailEvent(mail.messageId, 'bounced', diagnosticCode, bounceType);
 
       // Send bounce alert notifications if configured
       try {

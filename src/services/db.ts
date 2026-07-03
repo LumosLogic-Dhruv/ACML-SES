@@ -20,6 +20,7 @@ export async function initDb(): Promise<void> {
   await pool.query(`ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS bounce_reason TEXT`).catch(() => {});
   await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS notify_hard_bounce_email TEXT`).catch(() => {});
   await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS notify_soft_bounce_email TEXT`).catch(() => {});
+  await pool.query(`ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS bounce_type TEXT`).catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS email_logs (
