@@ -6,6 +6,7 @@ export const pool = new Pool({ connectionString: config.databaseUrl });
 export async function initDb(): Promise<void> {
   // Run column migrations FIRST so indexes on new columns don't fail
   await pool.query(`ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS client_id UUID`).catch(() => {});
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_logs_msg_recipient ON email_logs (message_id, recipient) WHERE message_id IS NOT NULL`).catch(() => {});
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`).catch(() => {});
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email) WHERE email IS NOT NULL`).catch(() => {});
   await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS allowed_domain TEXT NOT NULL DEFAULT ''`).catch(() => {});

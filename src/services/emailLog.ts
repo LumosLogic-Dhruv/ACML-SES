@@ -23,6 +23,32 @@ export async function logEmail(entry: EmailLogEntry): Promise<void> {
   );
 }
 
+export async function logEmailFromSMTP(entry: {
+  messageId: string;
+  recipient: string;
+  subject: string;
+  sentAt: string;
+  configSet: string;
+}): Promise<void> {
+  // Look up client_id by ses_config_set name
+  const { rows } = await pool.query(
+    `SELECT id FROM api_keys WHERE ses_config_set = $1 AND is_active = TRUE LIMIT 1`,
+    [entry.configSet]
+  );
+  if (rows.length === 0) {
+    console.warn(`[emailLog] no client found for config set: ${entry.configSet}`);
+    return;
+  }
+  const clientId = rows[0].id;
+
+  await pool.query(
+    `INSERT INTO email_logs (id, message_id, recipient, subject, sent_at, status, job_id, client_id)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, 'sent', 'smtp', $5)
+     ON CONFLICT (message_id, recipient) DO NOTHING`,
+    [entry.messageId, entry.recipient, entry.subject, entry.sentAt, clientId]
+  );
+}
+
 export async function updateEmailEvent(messageId: string, event: 'delivered' | 'opened' | 'bounced'): Promise<void> {
   const result = await pool.query(
     `UPDATE email_logs SET ${event} = TRUE WHERE message_id = $1`,

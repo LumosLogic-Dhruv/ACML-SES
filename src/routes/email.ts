@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { sendEmail } from '../services/mailer';
 import { logEmail } from '../services/emailLog';
 import { config } from '../config';
+import { pool } from '../services/db';
 
 const router = Router();
 const upload = multer({
@@ -92,6 +93,62 @@ router.post('/send-with-attachment', upload.single('attachment'), async (req: Re
     });
 
     res.json({ status: 'sent', messageId, attachment: req.file?.originalname ?? null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/logs?page=1&limit=50&status=sent&from=2026-07-01&to=2026-07-03
+router.get('/logs', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page  = Math.max(parseInt((req.query.page  as string) || '1'), 1);
+    const limit = Math.min(parseInt((req.query.limit as string) || '50'), 500);
+    const offset = (page - 1) * limit;
+    const status = req.query.status as string | undefined;
+
+    const params: (string | number | Date)[] = [req.clientId];
+    const conditions: string[] = ['client_id = $1'];
+
+    if (req.query.from) {
+      params.push(new Date(req.query.from as string));
+      conditions.push(`sent_at >= $${params.length}`);
+    }
+    if (req.query.to) {
+      const to = new Date(req.query.to as string);
+      to.setHours(23, 59, 59, 999);
+      params.push(to);
+      conditions.push(`sent_at <= $${params.length}`);
+    }
+    if (status) {
+      params.push(status);
+      conditions.push(`status = $${params.length}`);
+    }
+
+    const where = conditions.join(' AND ');
+
+    const [dataResult, countResult] = await Promise.all([
+      pool.query(
+        `SELECT id, message_id AS "messageId", recipient, subject,
+                sent_at AS "sentAt", status,
+                delivered, opened, bounced
+         FROM email_logs
+         WHERE ${where}
+         ORDER BY sent_at DESC
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+      pool.query(`SELECT COUNT(*) FROM email_logs WHERE ${where}`, params),
+    ]);
+
+    const total = parseInt(countResult.rows[0].count);
+
+    res.json({
+      page,
+      limit,
+      total,
+      total_pages: Math.ceil(total / limit),
+      logs: dataResult.rows,
+    });
   } catch (err) {
     next(err);
   }

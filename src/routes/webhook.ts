@@ -1,6 +1,6 @@
 import { Router, Request, Response, text } from 'express';
 import { createVerify } from 'crypto';
-import { updateEmailEvent } from '../services/emailLog';
+import { updateEmailEvent, logEmailFromSMTP } from '../services/emailLog';
 
 const router = Router();
 
@@ -90,7 +90,24 @@ router.post('/ses', async (req: Request, res: Response) => {
 
     console.log(`[webhook] SES event: ${eventType} for messageId: ${mail.messageId}`);
 
-    if (eventType === 'Delivery') {
+    if (eventType === 'Send') {
+      const configSet = mail.tags?.['ses:configuration-set']?.[0];
+      if (configSet) {
+        const recipients: string[] = mail.destination ?? [];
+        const subject: string = mail.commonHeaders?.subject ?? '(no subject)';
+        await Promise.all(
+          recipients.map(recipient =>
+            logEmailFromSMTP({
+              messageId: mail.messageId,
+              recipient,
+              subject,
+              sentAt: mail.timestamp ?? new Date().toISOString(),
+              configSet,
+            })
+          )
+        );
+      }
+    } else if (eventType === 'Delivery') {
       await updateEmailEvent(mail.messageId, 'delivered');
     } else if (eventType === 'Open') {
       await updateEmailEvent(mail.messageId, 'opened');
