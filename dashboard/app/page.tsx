@@ -11,7 +11,6 @@ import {
   Clock,
   ServerOff,
   Loader2,
-  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -242,12 +241,6 @@ export default function Dashboard() {
                   <SelectItem value="custom">Custom range</SelectItem>
                 </SelectContent>
               </Select>
-
-              <Button variant="outline" size="sm" onClick={exportDashboardPDF} disabled={!stats || loading}
-                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
 
               <Button variant="outline" size="sm" onClick={() => fetchData(true)} disabled={refreshing || loading}>
                 {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
