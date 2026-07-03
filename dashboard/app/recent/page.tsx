@@ -185,7 +185,7 @@ export default function RecentEmailsPage() {
     } finally {
       setLoading(false)
     }
-  }, [limit, preset, customFrom, customTo, role, selectedClientId])
+  }, [limit, preset, customFrom, customTo, selectedClientId])
 
   useEffect(() => {
     if (preset !== "custom") {

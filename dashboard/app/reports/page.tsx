@@ -161,9 +161,9 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
   doc.setTextColor(148, 163, 184)
   doc.text("EMAIL LOGS", 14, tableStartY)
 
-  // Table header
+  // Table header — widths: # 8, Recipient 48, Subject 60, Status 22, Del 14, Time 30 = 182mm
   const rowH = 7
-  const colXs = [14, 14 + 6, 14 + 6 + 52, 14 + 6 + 52 + 68, 14 + 6 + 52 + 68 + 22, 14 + 6 + 52 + 68 + 22 + 22]
+  const colXs = [14, 22, 70, 130, 152, 166]
   const colLabels = ["#", "Recipient", "Subject", "Status", "Del", "Time"]
   const headerY = tableStartY + 5
 
@@ -219,21 +219,21 @@ async function exportPDF(emails: EmailLogEntry[], clientName: string, periodLabe
     doc.setTextColor(71, 85, 105); doc.setFontSize(6.5); doc.setFont("helvetica", "normal")
     doc.text(String(idx + 1), colXs[0] + 1, currentY + 5)
 
-    // Recipient — truncate
-    const recipientTxt = email.recipient.length > 28 ? email.recipient.slice(0, 27) + "…" : email.recipient
+    // Recipient — truncate (48mm col, ~30 chars at 6.5pt)
+    const recipientTxt = email.recipient.length > 30 ? email.recipient.slice(0, 29) + "..." : email.recipient
     doc.text(recipientTxt, colXs[1] + 1, currentY + 5)
 
-    // Subject — truncate
-    const subjectTxt = email.subject.length > 35 ? email.subject.slice(0, 34) + "…" : email.subject
+    // Subject — truncate (60mm col, ~38 chars)
+    const subjectTxt = email.subject.length > 38 ? email.subject.slice(0, 37) + "..." : email.subject
     doc.text(subjectTxt, colXs[2] + 1, currentY + 5)
 
     // Status chip
     doc.setTextColor(...statusColor); doc.setFont("helvetica", "bold")
     doc.text(st.charAt(0).toUpperCase() + st.slice(1), colXs[3] + 1, currentY + 5)
 
-    // Delivered
+    // Delivered — use plain ASCII
     doc.setTextColor(16, 185, 129); doc.setFont("helvetica", "normal")
-    doc.text(email.delivered ? "✓" : "—", colXs[4] + 1, currentY + 5)
+    doc.text(email.delivered ? "Yes" : "No", colXs[4] + 1, currentY + 5)
 
     // Time
     doc.setTextColor(100, 116, 139)
