@@ -288,18 +288,24 @@ export async function getStats(params: { days?: number; from?: string; to?: stri
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
-export async function getSettings(clientId?: string): Promise<{ report_email: string | null }> {
+export interface SettingsData {
+  report_email: string | null
+  notify_hard_bounce_email: string | null
+  notify_soft_bounce_email: string | null
+}
+
+export async function getSettings(clientId?: string): Promise<SettingsData> {
   const query = clientId ? `?clientId=${clientId}` : ''
   const res = await fetchAdmin(`/client/settings${query}`)
   if (!res.ok) throw new Error('Failed to fetch settings')
   return res.json()
 }
 
-export async function updateSettings(report_email: string, clientId?: string): Promise<{ success: boolean; report_email: string | null }> {
+export async function updateSettings(fields: Partial<SettingsData>, clientId?: string): Promise<SettingsData & { success: boolean }> {
   const query = clientId ? `?clientId=${clientId}` : ''
   const res = await fetchAdmin(`/client/settings${query}`, {
     method: 'PUT',
-    body: JSON.stringify({ report_email }),
+    body: JSON.stringify(fields),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
