@@ -102,7 +102,7 @@ router.post('/send-with-attachment', upload.single('attachment'), async (req: Re
 router.get('/logs', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const page  = Math.max(parseInt((req.query.page  as string) || '1'), 1);
-    const limit = Math.min(parseInt((req.query.limit as string) || '50'), 500);
+    const limit = Math.min(parseInt((req.query.limit as string) || '50'), 10000);
     const offset = (page - 1) * limit;
     const status = req.query.status as string | undefined;
 
@@ -158,7 +158,7 @@ router.get('/logs', async (req: Request, res: Response, next: NextFunction) => {
 // GET /api/recent-emails?from=2026-06-01&to=2026-06-18
 router.get('/recent-emails', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const limit = Math.min(parseInt((req.query.limit as string) || '100'), 1000);
+    const limit = Math.min(parseInt((req.query.limit as string) || '100'), 10000);
     const { getRecentEmails } = await import('../services/emailLog');
 
     let from: Date | undefined;

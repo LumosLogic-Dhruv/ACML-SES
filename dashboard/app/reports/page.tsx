@@ -59,7 +59,6 @@ function getEmailStatus(email: EmailLogEntry): "bounced" | "delivered" | "sent" 
 type Preset = "1" | "7" | "30" | "90" | "custom"
 type StatusFilter = "all" | "sent" | "delivered" | "bounced" | "failed"
 
-const LIMIT_OPTIONS = [100, 200, 500, 1000, 3000, 5000]
 
 // ── CSV Export ────────────────────────────────────────────────────────────────
 function exportCSV(emails: EmailLogEntry[], periodLabel: string) {
@@ -279,7 +278,7 @@ export default function ReportsPage() {
   const [emails, setEmails] = useState<EmailLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [limit, setLimit] = useState(1000)
+  const limit = 10000
   const [preset, setPreset] = useState<Preset>("1")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
@@ -315,14 +314,14 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [limit, preset, customFrom, customTo, selectedClientId])
+  }, [preset, customFrom, customTo, selectedClientId])
 
   useEffect(() => {
     if (preset === "custom") return
     const token = decodeToken()
     if (token?.role === "admin" && !selectedClientId) return
     fetchEmails()
-  }, [preset, limit, selectedClientId, fetchEmails])
+  }, [preset, selectedClientId, fetchEmails])
 
   const handleCustomApply = () => {
     if (customFrom && customTo) fetchEmails()
@@ -400,15 +399,6 @@ export default function ReportsPage() {
                   </SelectContent>
                 </Select>
 
-                <select
-                  value={limit}
-                  onChange={e => setLimit(Number(e.target.value))}
-                  className="text-xs sm:text-sm border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
-                >
-                  {LIMIT_OPTIONS.map(opt => (
-                    <option key={opt} value={opt}>Limit {opt}</option>
-                  ))}
-                </select>
               </div>
 
               {preset === "custom" && (

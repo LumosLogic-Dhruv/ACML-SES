@@ -92,7 +92,7 @@ export async function getRecentEmails(
     conditions.push(`sent_at >= $${params.length - 1} AND sent_at <= $${params.length}`);
   }
 
-  params.push(Math.min(limit, 1000));
+  params.push(Math.min(limit, 10000));
 
   const { rows } = await pool.query(
     `SELECT id, message_id AS "messageId", recipient, subject,
