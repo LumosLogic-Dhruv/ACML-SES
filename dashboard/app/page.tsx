@@ -23,7 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { StatCard } from "@/components/StatCard"
-import { getStats, getJobs, getHealth, getAdminClientStats, getClientStats, DbStats, JobsData, HealthData } from "@/lib/api"
+import { BudgetCard } from "@/components/BudgetCard"
+import { getStats, getJobs, getHealth, getAdminClientStats, getClientStats, getAdminClientBudget, getClientBudget, DbStats, JobsData, HealthData, ClientBudget } from "@/lib/api"
 import { useClient } from "@/lib/clientContext"
 import { decodeToken } from "@/lib/auth"
 import {
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DbStats | null>(null)
   const [jobs, setJobs] = useState<JobsData | null>(null)
   const [health, setHealth] = useState<HealthData | null>(null)
+  const [budget, setBudget] = useState<ClientBudget | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -70,7 +72,7 @@ export default function Dashboard() {
       const isAdmin = effectiveRole === "admin"
       const isClient = effectiveRole === "client"
 
-      const [statsData, jobsData, healthData] = await Promise.allSettled([
+      const [statsData, jobsData, healthData, budgetData] = await Promise.allSettled([
         isAdmin && selectedClientId
           ? getAdminClientStats(selectedClientId, preset === "custom" ? 7 : days)
           : isClient
@@ -78,6 +80,7 @@ export default function Dashboard() {
             : getStats(preset === "custom" && customFrom && customTo ? { from: customFrom, to: customTo } : { days }),
         getJobs(),
         getHealth(),
+        isAdmin && selectedClientId ? getAdminClientBudget(selectedClientId) : isClient ? getClientBudget() : Promise.resolve(null),
       ])
 
       if (statsData.status === "fulfilled") setStats(statsData.value)
@@ -85,6 +88,7 @@ export default function Dashboard() {
 
       if (jobsData.status === "fulfilled") setJobs(jobsData.value)
       if (healthData.status === "fulfilled") setHealth(healthData.value)
+      if (budgetData.status === "fulfilled") setBudget(budgetData.value)
 
       setLastUpdated(new Date())
     } finally {
@@ -292,6 +296,19 @@ export default function Dashboard() {
             {selectedClientName ? `Viewing: ${selectedClientName}` : "Email delivery metrics"}
           </p>
         </div>
+
+        {/* Budget card — always reflects "today", independent of the selected date range */}
+        {budget && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <BudgetCard
+              dailyLimit={budget.dailyLimit}
+              sentToday={budget.sentToday}
+              usagePct={budget.usagePct}
+              remaining={budget.remaining}
+              loading={loading}
+            />
+          </div>
+        )}
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-6">

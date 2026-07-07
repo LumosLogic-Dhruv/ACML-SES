@@ -14,8 +14,15 @@ function maskKey(key: string): string {
   return key.slice(0, 8) + '••••••••••••••••••••••••••••••••' + key.slice(-4);
 }
 
+// Next midnight IST, as a UTC ISO string — matches the reset boundary used for daily_limit enforcement
+function nextMidnightIST(): string {
+  const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  const istMidnight = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate() + 1, 0, 0, 0);
+  return new Date(istMidnight - 5.5 * 60 * 60 * 1000).toISOString();
+}
+
 // POST /admin/keys
-// Body: { client_name, allowed_domain, smtp_host?, smtp_port?, smtp_user?, smtp_pass?, ses_config_set? }
+// Body: { client_name, allowed_domain, smtp_host?, smtp_port?, smtp_user?, smtp_pass?, ses_config_set?, daily_limit? }
 router.post('/keys', async (req: Request, res: Response) => {
   const clientName    = (req.body.client_name    as string | undefined)?.trim();
   const allowedDomain = (req.body.allowed_domain as string | undefined)?.trim().toLowerCase();
@@ -24,9 +31,11 @@ router.post('/keys', async (req: Request, res: Response) => {
   const smtpUser      = (req.body.smtp_user      as string | undefined)?.trim() || null;
   const smtpPass      = (req.body.smtp_pass      as string | undefined)?.trim() || null;
   const sesConfigSet  = (req.body.ses_config_set as string | undefined)?.trim() || null;
+  const dailyLimit    = req.body.daily_limit ? parseInt(req.body.daily_limit) : 0;
 
   if (!clientName)    { res.status(400).json({ error: '"client_name" is required' }); return; }
   if (!allowedDomain) { res.status(400).json({ error: '"allowed_domain" is required (e.g. "mail.client1.com")' }); return; }
+  if (dailyLimit < 0 || Number.isNaN(dailyLimit)) { res.status(400).json({ error: '"daily_limit" must be a non-negative number' }); return; }
 
   // If any SMTP field provided, all are required
   if ((smtpHost || smtpUser || smtpPass) && !(smtpHost && smtpUser && smtpPass && sesConfigSet)) {
@@ -36,13 +45,14 @@ router.post('/keys', async (req: Request, res: Response) => {
 
   const key = generateApiKey();
   await pool.query(
-    'INSERT INTO api_keys (key, client_name, allowed_domain, smtp_host, smtp_port, smtp_user, smtp_pass, ses_config_set) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-    [key, clientName, allowedDomain, smtpHost, smtpPort, smtpUser, smtpPass, sesConfigSet]
+    'INSERT INTO api_keys (key, client_name, allowed_domain, smtp_host, smtp_port, smtp_user, smtp_pass, ses_config_set, daily_limit) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+    [key, clientName, allowedDomain, smtpHost, smtpPort, smtpUser, smtpPass, sesConfigSet, dailyLimit]
   );
 
   res.status(201).json({
     client_name: clientName,
     allowed_domain: allowedDomain,
+    daily_limit: dailyLimit,
     smtp: smtpHost ? { host: smtpHost, port: smtpPort, user: smtpUser, config_set: sesConfigSet } : 'shared (default)',
     api_key: key,
     note: 'Save this key now. It will not be shown again.',
@@ -51,8 +61,24 @@ router.post('/keys', async (req: Request, res: Response) => {
 
 // GET /admin/keys
 router.get('/keys', async (_req: Request, res: Response) => {
-  const { rows } = await pool.query(`SELECT id, client_name, allowed_domain, key, is_active, created_at FROM api_keys ORDER BY created_at DESC`);
-  res.json({ keys: rows.map(r => ({ id: r.id, client_name: r.client_name, allowed_domain: r.allowed_domain, key: r.key, key_preview: maskKey(r.key), is_active: r.is_active, created_at: r.created_at })) });
+  const { rows } = await pool.query(`SELECT id, client_name, allowed_domain, key, is_active, created_at, daily_limit FROM api_keys ORDER BY created_at DESC`);
+  res.json({ keys: rows.map(r => ({ id: r.id, client_name: r.client_name, allowed_domain: r.allowed_domain, key: r.key, key_preview: maskKey(r.key), is_active: r.is_active, created_at: r.created_at, daily_limit: r.daily_limit ?? 0 })) });
+});
+
+// PATCH /admin/keys/:id/limit
+// Body: { daily_limit: number }  — 0 means unlimited
+router.patch('/keys/:id/limit', async (req: Request, res: Response) => {
+  const dailyLimit = parseInt(req.body.daily_limit);
+  if (Number.isNaN(dailyLimit) || dailyLimit < 0) { res.status(400).json({ error: '"daily_limit" must be a non-negative number' }); return; }
+
+  const { rows } = await pool.query<{ key: string }>(
+    'UPDATE api_keys SET daily_limit = $1 WHERE id = $2 RETURNING key',
+    [dailyLimit, req.params.id]
+  );
+  if (rows.length === 0) { res.status(404).json({ error: 'Client not found' }); return; }
+
+  evictKeyCache(rows[0].key);
+  res.json({ message: 'Daily limit updated successfully', daily_limit: dailyLimit });
 });
 
 // PATCH /admin/keys/:id/revoke
@@ -123,6 +149,34 @@ router.get('/clients/:id/stats', async (req: Request, res: Response) => {
       sent: parseInt(r.sent)||0, delivered: parseInt(r.delivered)||0,
       bounced: parseInt(r.bounced)||0, failed: parseInt(r.failed)||0,
     })),
+  });
+});
+
+// GET /admin/clients/:id/budget — today's usage against the client's daily email limit
+router.get('/clients/:id/budget', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const { rows: clientRows } = await pool.query<{ daily_limit: number }>(
+    'SELECT daily_limit FROM api_keys WHERE id = $1',
+    [id]
+  );
+  if (clientRows.length === 0) { res.status(404).json({ error: 'Client not found' }); return; }
+
+  const dailyLimit = clientRows[0].daily_limit ?? 0;
+
+  const { rows: countRows } = await pool.query<{ today_count: string }>(
+    `SELECT COUNT(*) AS today_count FROM email_logs
+     WHERE client_id = $1 AND sent_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`,
+    [id]
+  );
+  const sentToday = parseInt(countRows[0]?.today_count ?? '0', 10);
+
+  res.json({
+    dailyLimit,
+    sentToday,
+    remaining: dailyLimit > 0 ? Math.max(dailyLimit - sentToday, 0) : null,
+    usagePct: dailyLimit > 0 ? Math.min(100, Math.round((sentToday / dailyLimit) * 1000) / 10) : null,
+    resetsAt: nextMidnightIST(),
   });
 });
 

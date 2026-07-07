@@ -4,6 +4,13 @@ import { getStatsByClientId } from '../services/emailLog';
 
 const router = Router();
 
+// Next midnight IST, as a UTC ISO string — matches the reset boundary used for daily_limit enforcement
+function nextMidnightIST(): string {
+  const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  const istMidnight = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate() + 1, 0, 0, 0);
+  return new Date(istMidnight - 5.5 * 60 * 60 * 1000).toISOString();
+}
+
 // GET /client/info — returns the client's own company info
 router.get('/info', async (req: Request, res: Response) => {
   const clientId = req.user?.clientId;
@@ -15,6 +22,35 @@ router.get('/info', async (req: Request, res: Response) => {
   );
   if (rows.length === 0) { res.status(404).json({ error: 'Client not found' }); return; }
   res.json({ client: rows[0] });
+});
+
+// GET /client/budget — today's usage against the daily email limit
+router.get('/budget', async (req: Request, res: Response) => {
+  const clientId = req.user?.clientId;
+  if (!clientId) { res.status(403).json({ error: 'No client associated with this account' }); return; }
+
+  const { rows: clientRows } = await pool.query<{ daily_limit: number }>(
+    'SELECT daily_limit FROM api_keys WHERE id = $1',
+    [clientId]
+  );
+  if (clientRows.length === 0) { res.status(404).json({ error: 'Client not found' }); return; }
+
+  const dailyLimit = clientRows[0].daily_limit ?? 0;
+
+  const { rows: countRows } = await pool.query<{ today_count: string }>(
+    `SELECT COUNT(*) AS today_count FROM email_logs
+     WHERE client_id = $1 AND sent_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`,
+    [clientId]
+  );
+  const sentToday = parseInt(countRows[0]?.today_count ?? '0', 10);
+
+  res.json({
+    dailyLimit,
+    sentToday,
+    remaining: dailyLimit > 0 ? Math.max(dailyLimit - sentToday, 0) : null,
+    usagePct: dailyLimit > 0 ? Math.min(100, Math.round((sentToday / dailyLimit) * 1000) / 10) : null,
+    resetsAt: nextMidnightIST(),
+  });
 });
 
 // GET /client/stats?days=7

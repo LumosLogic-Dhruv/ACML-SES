@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Key, Plus, CheckCircle2, XCircle, Copy, Check } from "lucide-react"
-import { getAdminClients, createAdminClient, revokeAdminClient, activateAdminClient, ClientKey } from "@/lib/api"
+import { Key, Plus, CheckCircle2, XCircle, Copy, Check, Pencil } from "lucide-react"
+import { getAdminClients, createAdminClient, revokeAdminClient, activateAdminClient, updateAdminClientLimit, ClientKey } from "@/lib/api"
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<ClientKey[]>([])
@@ -11,9 +11,13 @@ export default function ClientsPage() {
   const [showForm, setShowForm] = useState(false)
   const [newName, setNewName] = useState("")
   const [newDomain, setNewDomain] = useState("")
+  const [newDailyLimit, setNewDailyLimit] = useState("")
   const [creating, setCreating] = useState(false)
   const [newApiKey, setNewApiKey] = useState("")
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [editingLimitId, setEditingLimitId] = useState<string | null>(null)
+  const [editingLimitValue, setEditingLimitValue] = useState("")
+  const [savingLimit, setSavingLimit] = useState(false)
 
   const fetchClients = useCallback(async () => {
     try {
@@ -32,15 +36,39 @@ export default function ClientsPage() {
     e.preventDefault()
     setCreating(true)
     try {
-      const res = await createAdminClient({ client_name: newName.trim(), allowed_domain: newDomain.trim() })
+      const res = await createAdminClient({
+        client_name: newName.trim(),
+        allowed_domain: newDomain.trim(),
+        daily_limit: newDailyLimit.trim() ? parseInt(newDailyLimit.trim()) : undefined,
+      })
       setNewApiKey(res.api_key)
       setNewName("")
       setNewDomain("")
+      setNewDailyLimit("")
       fetchClients()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create")
     } finally {
       setCreating(false)
+    }
+  }
+
+  function startEditLimit(client: ClientKey) {
+    setEditingLimitId(client.id)
+    setEditingLimitValue(client.daily_limit ? String(client.daily_limit) : "")
+  }
+
+  async function saveLimit(id: string) {
+    setSavingLimit(true)
+    try {
+      const value = editingLimitValue.trim() ? parseInt(editingLimitValue.trim()) : 0
+      await updateAdminClientLimit(id, value)
+      setEditingLimitId(null)
+      fetchClients()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update daily limit")
+    } finally {
+      setSavingLimit(false)
     }
   }
 
@@ -100,6 +128,11 @@ export default function ClientsPage() {
                 <input value={newDomain} onChange={e => setNewDomain(e.target.value)} placeholder="e.g. mail.acme.com"
                   required className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-indigo-500" />
               </div>
+              <div className="min-w-[140px]">
+                <label className="block text-xs text-[var(--muted-foreground)] mb-1">Daily email limit</label>
+                <input value={newDailyLimit} onChange={e => setNewDailyLimit(e.target.value)} type="number" min={0} placeholder="e.g. 5000"
+                  className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-indigo-500" />
+              </div>
               <button type="submit" disabled={creating}
                 className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors">
                 {creating ? "Creating…" : "Create"}
@@ -132,6 +165,7 @@ export default function ClientsPage() {
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Client</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Domain</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">API Key</th>
+                <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Daily Limit</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Created</th>
                 <th className="px-4 py-3 text-center font-medium text-[var(--muted-foreground)]">Status</th>
                 <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Action</th>
@@ -141,13 +175,13 @@ export default function ClientsPage() {
               {loading ? (
                 [...Array(3)].map((_, i) => (
                   <tr key={i} className="border-b border-[var(--border)]">
-                    {[...Array(6)].map((_, j) => (
+                    {[...Array(7)].map((_, j) => (
                       <td key={j} className="px-4 py-3"><div className="h-4 rounded bg-[var(--muted)] animate-pulse" /></td>
                     ))}
                   </tr>
                 ))
               ) : clients.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-[var(--muted-foreground)]">No clients yet</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-[var(--muted-foreground)]">No clients yet</td></tr>
               ) : clients.map(client => (
                 <tr key={client.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--muted)]/30">
                   <td className="px-4 py-3 font-medium">{client.client_name}</td>
@@ -163,6 +197,35 @@ export default function ClientsPage() {
                         {copiedId === client.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                       </button>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {editingLimitId === client.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={0}
+                          autoFocus
+                          value={editingLimitValue}
+                          onChange={e => setEditingLimitValue(e.target.value)}
+                          placeholder="0 = unlimited"
+                          className="w-24 border border-[var(--border)] rounded-md px-2 py-1 text-xs bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:border-indigo-500"
+                        />
+                        <button onClick={() => saveLimit(client.id)} disabled={savingLimit}
+                          className="p-1 rounded hover:bg-[var(--muted)] text-emerald-600 disabled:opacity-50">
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => setEditingLimitId(null)} disabled={savingLimit}
+                          className="p-1 rounded hover:bg-[var(--muted)] text-[var(--muted-foreground)] disabled:opacity-50">
+                          <XCircle className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => startEditLimit(client)}
+                        className="flex items-center gap-1.5 text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
+                        <span>{client.daily_limit > 0 ? `${client.daily_limit.toLocaleString()} / day` : "Unlimited"}</span>
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-[var(--muted-foreground)]">{new Date(client.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-center">
