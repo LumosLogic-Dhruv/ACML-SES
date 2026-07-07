@@ -7,7 +7,7 @@ import { sendEmail } from '../services/mailer';
 import { logEmail } from '../services/emailLog';
 import { config } from '../config';
 import { pool } from '../services/db';
-import { istMidnight } from '../utils/time';
+import { istMidnight, istDateStart, istDateEnd } from '../utils/time';
 
 const router = Router();
 const upload = multer({
@@ -166,9 +166,11 @@ router.get('/recent-emails', async (req: Request, res: Response, next: NextFunct
     let to: Date | undefined;
 
     if (req.query.from && req.query.to) {
-      from = new Date(req.query.from as string);
-      to = new Date(req.query.to as string);
-      to.setHours(23, 59, 59, 999);
+      let fromStr = req.query.from as string;
+      let toStr   = req.query.to as string;
+      if (fromStr > toStr) [fromStr, toStr] = [toStr, fromStr]; // never let start be after end
+      from = istDateStart(fromStr);
+      to   = istDateEnd(toStr);
     } else if (req.query.days) {
       const days = parseInt(req.query.days as string);
       from = istMidnight(days - 1); // days=1 ("Today") → today's IST midnight

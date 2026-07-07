@@ -200,10 +200,20 @@ export default function BouncesPage() {
               </div>
               {preset === "custom" && (
                 <div className="flex items-center gap-2">
-                  <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                  <input type="date" value={customFrom} max={customTo || undefined}
+                    onChange={e => {
+                      const value = e.target.value
+                      setCustomFrom(value)
+                      if (customTo && value > customTo) setCustomTo(value)
+                    }}
                     className="text-xs border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)]" />
                   <span className="text-xs text-[var(--muted-foreground)]">to</span>
-                  <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                  <input type="date" value={customTo} min={customFrom || undefined}
+                    onChange={e => {
+                      const value = e.target.value
+                      setCustomTo(value)
+                      if (customFrom && value < customFrom) setCustomFrom(value)
+                    }}
                     className="text-xs border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)]" />
                   <Button size="sm" onClick={handleCustomApply} disabled={!customFrom || !customTo} className="h-7 text-xs">Apply</Button>
                 </div>

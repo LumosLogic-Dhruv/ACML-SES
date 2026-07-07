@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../services/db';
 import { getStatsByClientId } from '../services/emailLog';
-import { istMidnight, nextMidnightIST } from '../utils/time';
+import { istMidnight, nextMidnightIST, istDateStart, istDateEnd } from '../utils/time';
 
 const router = Router();
 
@@ -56,9 +56,11 @@ router.get('/stats', async (req: Request, res: Response) => {
   let to: Date = new Date();
 
   if (req.query.from && req.query.to) {
-    from = new Date(req.query.from as string);
-    to   = new Date(req.query.to as string);
-    to.setHours(23, 59, 59, 999);
+    let fromStr = req.query.from as string;
+    let toStr   = req.query.to as string;
+    if (fromStr > toStr) [fromStr, toStr] = [toStr, fromStr]; // never let start be after end
+    from = istDateStart(fromStr);
+    to   = istDateEnd(toStr);
   } else {
     const days = Math.min(parseInt((req.query.days as string) || '7'), 365);
     from = istMidnight(days - 1); // days=1 ("Today") → today's IST midnight
@@ -76,9 +78,11 @@ router.get('/emails', async (req: Request, res: Response) => {
   const limit  = Math.min(parseInt((req.query.limit  as string) || '100'), 10000);
   const offset = parseInt((req.query.offset as string) || '0');
   const search = (req.query.search as string | undefined)?.trim();
-  const from   = req.query.from as string | undefined;
-  const to     = req.query.to   as string | undefined;
+  let   from   = req.query.from as string | undefined;
+  let   to     = req.query.to   as string | undefined;
   const days   = req.query.days ? parseInt(req.query.days as string) : undefined;
+
+  if (from && to && from > to) [from, to] = [to, from]; // never let start be after end
 
   const params: (string | number | Date)[] = [clientId];
   const whereClauses: string[] = [];
@@ -88,9 +92,9 @@ router.get('/emails', async (req: Request, res: Response) => {
     whereClauses.push(`(recipient ILIKE $${params.length} OR subject ILIKE $${params.length})`);
   }
   if (from && to) {
-    params.push(new Date(from));
+    params.push(istDateStart(from));
     whereClauses.push(`sent_at >= $${params.length}`);
-    params.push(new Date(to + 'T23:59:59.999Z'));
+    params.push(istDateEnd(to));
     whereClauses.push(`sent_at <= $${params.length}`);
   } else if (days) {
     params.push(istMidnight(days - 1)); // days=1 ("Today") → today's IST midnight

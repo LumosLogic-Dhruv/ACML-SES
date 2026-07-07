@@ -259,14 +259,24 @@ export default function Dashboard() {
               <input
                 type="date"
                 value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
+                max={customTo || undefined}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setCustomFrom(value)
+                  if (customTo && value > customTo) setCustomTo(value)
+                }}
                 className="text-sm border border-[var(--border)] rounded-md px-3 py-1.5 bg-[var(--background)] text-[var(--foreground)]"
               />
               <span className="text-sm text-[var(--muted-foreground)]">to</span>
               <input
                 type="date"
                 value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
+                min={customFrom || undefined}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setCustomTo(value)
+                  if (customFrom && value < customFrom) setCustomFrom(value)
+                }}
                 className="text-sm border border-[var(--border)] rounded-md px-3 py-1.5 bg-[var(--background)] text-[var(--foreground)]"
               />
               <Button size="sm" onClick={handleCustomApply} disabled={!customFrom || !customTo}>

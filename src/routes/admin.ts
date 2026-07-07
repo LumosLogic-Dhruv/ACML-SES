@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import { pool } from '../services/db';
 import { evictKeyCache } from '../middleware/auth';
 import { hashPassword } from '../services/authService';
-import { istMidnight, nextMidnightIST } from '../utils/time';
+import { istMidnight, nextMidnightIST, istDateStart, istDateEnd } from '../utils/time';
 
 const router = Router();
 
@@ -178,9 +178,11 @@ router.get('/clients/:id/emails', async (req: Request, res: Response) => {
   const limit   = Math.min(parseInt((req.query.limit  as string) || '50'),  10000);
   const offset  = parseInt((req.query.offset as string) || '0');
   const search  = (req.query.search as string | undefined)?.trim();
-  const from    = req.query.from as string | undefined;
-  const to      = req.query.to   as string | undefined;
+  let   from    = req.query.from as string | undefined;
+  let   to      = req.query.to   as string | undefined;
   const days    = req.query.days ? parseInt(req.query.days as string) : undefined;
+
+  if (from && to && from > to) [from, to] = [to, from]; // never let start be after end
 
   const params: (string | number | Date)[] = [id];
   const whereClauses: string[] = [];
@@ -190,9 +192,9 @@ router.get('/clients/:id/emails', async (req: Request, res: Response) => {
     whereClauses.push(`(recipient ILIKE $${params.length} OR subject ILIKE $${params.length})`);
   }
   if (from && to) {
-    params.push(new Date(from));
+    params.push(istDateStart(from));
     whereClauses.push(`sent_at >= $${params.length}`);
-    params.push(new Date(to + 'T23:59:59.999Z'));
+    params.push(istDateEnd(to));
     whereClauses.push(`sent_at <= $${params.length}`);
   } else if (days) {
     params.push(istMidnight(days - 1)); // days=1 ("Today") → today's IST midnight
