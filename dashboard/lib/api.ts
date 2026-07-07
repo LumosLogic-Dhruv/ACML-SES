@@ -29,11 +29,13 @@ export interface ClientKey {
 }
 
 export interface ClientBudget {
+  date: string
+  isToday: boolean
   dailyLimit: number
-  sentToday: number
+  sent: number
   remaining: number | null
   usagePct: number | null
-  resetsAt: string
+  resetsAt: string | null
 }
 
 export interface AdminUser {
@@ -84,8 +86,9 @@ export async function updateAdminClientLimit(id: string, daily_limit: number): P
   if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Failed to update daily limit') }
 }
 
-export async function getAdminClientBudget(clientId: string): Promise<ClientBudget> {
-  const res = await fetchAdmin(`/admin/clients/${clientId}/budget`)
+export async function getAdminClientBudget(clientId: string, date?: string): Promise<ClientBudget> {
+  const query = date ? `?date=${date}` : ''
+  const res = await fetchAdmin(`/admin/clients/${clientId}/budget${query}`)
   if (!res.ok) throw new Error('Failed to fetch client budget')
   return res.json()
 }
@@ -150,8 +153,9 @@ export async function getClientInfo(): Promise<{ client: ClientInfo }> {
   return res.json()
 }
 
-export async function getClientBudget(): Promise<ClientBudget> {
-  const res = await fetchAdmin('/client/budget')
+export async function getClientBudget(date?: string): Promise<ClientBudget> {
+  const query = date ? `?date=${date}` : ''
+  const res = await fetchAdmin(`/client/budget${query}`)
   if (!res.ok) throw new Error('Failed to fetch client budget')
   return res.json()
 }

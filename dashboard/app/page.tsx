@@ -40,6 +40,10 @@ import {
 
 type Preset = "1" | "7" | "30" | "90" | "custom"
 
+function getTodayIST(): string {
+  return new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split("T")[0]
+}
+
 const CHART_COLORS = {
   Sent: "#6366f1",
   Delivered: "#10b981",
@@ -56,6 +60,8 @@ export default function Dashboard() {
   const [jobs, setJobs] = useState<JobsData | null>(null)
   const [health, setHealth] = useState<HealthData | null>(null)
   const [budget, setBudget] = useState<ClientBudget | null>(null)
+  const [budgetDate, setBudgetDate] = useState(getTodayIST())
+  const [budgetLoading, setBudgetLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -72,7 +78,7 @@ export default function Dashboard() {
       const isAdmin = effectiveRole === "admin"
       const isClient = effectiveRole === "client"
 
-      const [statsData, jobsData, healthData, budgetData] = await Promise.allSettled([
+      const [statsData, jobsData, healthData] = await Promise.allSettled([
         isAdmin && selectedClientId
           ? getAdminClientStats(selectedClientId, preset === "custom" ? 7 : days)
           : isClient
@@ -80,7 +86,6 @@ export default function Dashboard() {
             : getStats(preset === "custom" && customFrom && customTo ? { from: customFrom, to: customTo } : { days }),
         getJobs(),
         getHealth(),
-        isAdmin && selectedClientId ? getAdminClientBudget(selectedClientId) : isClient ? getClientBudget() : Promise.resolve(null),
       ])
 
       if (statsData.status === "fulfilled") setStats(statsData.value)
@@ -88,7 +93,6 @@ export default function Dashboard() {
 
       if (jobsData.status === "fulfilled") setJobs(jobsData.value)
       if (healthData.status === "fulfilled") setHealth(healthData.value)
-      if (budgetData.status === "fulfilled") setBudget(budgetData.value)
 
       setLastUpdated(new Date())
     } finally {
@@ -96,6 +100,27 @@ export default function Dashboard() {
       setRefreshing(false)
     }
   }, [preset, customFrom, customTo, role, selectedClientId])
+
+  const fetchBudget = useCallback(async () => {
+    setBudgetLoading(true)
+    try {
+      const effectiveRole = decodeToken()?.role
+      const isAdmin = effectiveRole === "admin"
+      const isClient = effectiveRole === "client"
+
+      const budgetData = isAdmin && selectedClientId
+        ? await getAdminClientBudget(selectedClientId, budgetDate)
+        : isClient
+          ? await getClientBudget(budgetDate)
+          : null
+
+      setBudget(budgetData)
+    } catch {
+      setBudget(null)
+    } finally {
+      setBudgetLoading(false)
+    }
+  }, [selectedClientId, budgetDate])
 
   useEffect(() => {
     if (preset !== "custom") {
@@ -106,11 +131,18 @@ export default function Dashboard() {
   }, [preset, selectedClientId, fetchData])
 
   useEffect(() => {
+    const token = decodeToken()
+    if (token?.role === "admin" && !selectedClientId) return
+    fetchBudget()
+  }, [selectedClientId, budgetDate, fetchBudget])
+
+  useEffect(() => {
     const interval = setInterval(() => {
       if (preset !== "custom") fetchData()
+      if (budgetDate === getTodayIST()) fetchBudget()
     }, 60_000)
     return () => clearInterval(interval)
-  }, [preset, fetchData])
+  }, [preset, fetchData, budgetDate, fetchBudget])
 
   const handleCustomApply = () => {
     if (customFrom && customTo) fetchData()
@@ -307,15 +339,19 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Budget card — always reflects "today", independent of the selected date range */}
-        {budget && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Budget card — has its own date picker, independent of the dashboard's selected date range */}
+        {(budget || budgetLoading) && (
+          <div className="mb-6">
             <BudgetCard
-              dailyLimit={budget.dailyLimit}
-              sentToday={budget.sentToday}
-              usagePct={budget.usagePct}
-              remaining={budget.remaining}
-              loading={loading}
+              date={budgetDate}
+              isToday={budget?.isToday ?? budgetDate === getTodayIST()}
+              maxDate={getTodayIST()}
+              onDateChange={setBudgetDate}
+              dailyLimit={budget?.dailyLimit ?? 0}
+              sent={budget?.sent ?? 0}
+              usagePct={budget?.usagePct ?? null}
+              remaining={budget?.remaining ?? null}
+              loading={budgetLoading}
             />
           </div>
         )}

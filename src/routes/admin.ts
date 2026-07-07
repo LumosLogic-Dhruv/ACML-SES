@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto';
 import { pool } from '../services/db';
 import { evictKeyCache } from '../middleware/auth';
 import { hashPassword } from '../services/authService';
-import { istMidnight, nextMidnightIST, istDateStart, istDateEnd } from '../utils/time';
+import { istMidnight, nextMidnightIST, istDateStart, istDateEnd, todayISTDateString } from '../utils/time';
 
 const router = Router();
 
@@ -144,7 +144,7 @@ router.get('/clients/:id/stats', async (req: Request, res: Response) => {
   });
 });
 
-// GET /admin/clients/:id/budget — today's usage against the client's daily email limit
+// GET /admin/clients/:id/budget?date=YYYY-MM-DD — usage for a given IST calendar day against the client's daily email limit (default: today)
 router.get('/clients/:id/budget', async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -156,19 +156,26 @@ router.get('/clients/:id/budget', async (req: Request, res: Response) => {
 
   const dailyLimit = clientRows[0].daily_limit ?? 0;
 
-  const { rows: countRows } = await pool.query<{ today_count: string }>(
-    `SELECT COUNT(*) AS today_count FROM email_logs
-     WHERE client_id = $1 AND sent_at >= $2`,
-    [id, istMidnight(0)]
+  const todayStr = todayISTDateString();
+  const date = ((req.query.date as string | undefined)?.trim()) || todayStr;
+  const isToday = date === todayStr;
+  const rangeEnd = date > todayStr ? new Date() : istDateEnd(date); // clamp future dates to "now"
+
+  const { rows: countRows } = await pool.query<{ day_count: string }>(
+    `SELECT COUNT(*) AS day_count FROM email_logs
+     WHERE client_id = $1 AND sent_at >= $2 AND sent_at <= $3`,
+    [id, istDateStart(date), rangeEnd]
   );
-  const sentToday = parseInt(countRows[0]?.today_count ?? '0', 10);
+  const sent = parseInt(countRows[0]?.day_count ?? '0', 10);
 
   res.json({
+    date,
+    isToday,
     dailyLimit,
-    sentToday,
-    remaining: dailyLimit > 0 ? Math.max(dailyLimit - sentToday, 0) : null,
-    usagePct: dailyLimit > 0 ? Math.min(100, Math.round((sentToday / dailyLimit) * 1000) / 10) : null,
-    resetsAt: nextMidnightIST(),
+    sent,
+    remaining: dailyLimit > 0 ? Math.max(dailyLimit - sent, 0) : null,
+    usagePct: dailyLimit > 0 ? Math.min(100, Math.round((sent / dailyLimit) * 1000) / 10) : null,
+    resetsAt: isToday ? nextMidnightIST() : null,
   });
 });
 

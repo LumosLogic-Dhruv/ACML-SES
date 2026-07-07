@@ -25,3 +25,9 @@ export function istDateEnd(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0) - IST_OFFSET_MS - 1);
 }
+
+// Today's IST calendar date as "YYYY-MM-DD".
+export function todayISTDateString(): string {
+  const istNow = new Date(Date.now() + IST_OFFSET_MS);
+  return istNow.toISOString().split('T')[0];
+}
