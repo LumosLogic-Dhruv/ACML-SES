@@ -125,7 +125,7 @@ export async function getStatsByClientId(
     ),
     pool.query(
       `SELECT
-        DATE_TRUNC('day', sent_at AT TIME ZONE 'UTC') AS day,
+        DATE_TRUNC('day', sent_at AT TIME ZONE 'Asia/Kolkata') AS day,
         COUNT(*)                                       AS sent,
         COUNT(*) FILTER (WHERE delivered = TRUE)       AS delivered,
         COUNT(*) FILTER (WHERE bounced = TRUE)         AS bounced,

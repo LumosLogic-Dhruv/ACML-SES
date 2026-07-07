@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import { pool } from '../services/db';
 import { evictKeyCache } from '../middleware/auth';
 import { hashPassword } from '../services/authService';
+import { istMidnight, nextMidnightIST } from '../utils/time';
 
 const router = Router();
 
@@ -12,13 +13,6 @@ function generateApiKey(): string {
 
 function maskKey(key: string): string {
   return key.slice(0, 8) + '••••••••••••••••••••••••••••••••' + key.slice(-4);
-}
-
-// Next midnight IST, as a UTC ISO string — matches the reset boundary used for daily_limit enforcement
-function nextMidnightIST(): string {
-  const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-  const istMidnight = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate() + 1, 0, 0, 0);
-  return new Date(istMidnight - 5.5 * 60 * 60 * 1000).toISOString();
 }
 
 // POST /admin/keys
@@ -109,9 +103,7 @@ router.get('/clients/:id/stats', async (req: Request, res: Response) => {
   const { id } = req.params;
   const days = Math.min(parseInt((req.query.days as string) || '7'), 365);
   const to   = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - days);
-  from.setHours(0, 0, 0, 0);
+  const from = istMidnight(days - 1); // days=1 ("Today") → today's IST midnight
 
   const [summary, timeseries] = await Promise.all([
     pool.query(
@@ -123,7 +115,7 @@ router.get('/clients/:id/stats', async (req: Request, res: Response) => {
       [id, from, to]
     ),
     pool.query(
-      `SELECT DATE_TRUNC('day', sent_at AT TIME ZONE 'UTC') AS day,
+      `SELECT DATE_TRUNC('day', sent_at AT TIME ZONE 'Asia/Kolkata') AS day,
               COUNT(*) AS sent,
               COUNT(*) FILTER (WHERE delivered=TRUE) AS delivered,
               COUNT(*) FILTER (WHERE bounced=TRUE)   AS bounced,

@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { getStatsByClientId } from '../services/emailLog';
+import { istMidnight } from '../utils/time';
 
 const router = Router();
 
@@ -16,9 +17,7 @@ router.get('/stats', async (req: Request, res: Response, next: NextFunction) => 
       to.setHours(23, 59, 59, 999);
     } else {
       const days = Math.min(parseInt((req.query.days as string) || '7'), 365);
-      from = new Date();
-      from.setDate(from.getDate() - days);
-      from.setHours(0, 0, 0, 0);
+      from = istMidnight(days - 1); // days=1 ("Today") → today's IST midnight
     }
 
     const { summary, timeseries } = await getStatsByClientId(req.clientId, from, to);

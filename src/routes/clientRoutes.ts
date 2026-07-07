@@ -1,15 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../services/db';
 import { getStatsByClientId } from '../services/emailLog';
+import { istMidnight, nextMidnightIST } from '../utils/time';
 
 const router = Router();
-
-// Next midnight IST, as a UTC ISO string — matches the reset boundary used for daily_limit enforcement
-function nextMidnightIST(): string {
-  const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-  const istMidnight = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate() + 1, 0, 0, 0);
-  return new Date(istMidnight - 5.5 * 60 * 60 * 1000).toISOString();
-}
 
 // GET /client/info — returns the client's own company info
 router.get('/info', async (req: Request, res: Response) => {
@@ -67,9 +61,7 @@ router.get('/stats', async (req: Request, res: Response) => {
     to.setHours(23, 59, 59, 999);
   } else {
     const days = Math.min(parseInt((req.query.days as string) || '7'), 365);
-    from = new Date();
-    from.setDate(from.getDate() - days);
-    from.setHours(0, 0, 0, 0);
+    from = istMidnight(days - 1); // days=1 ("Today") → today's IST midnight
   }
 
   const { summary, timeseries } = await getStatsByClientId(clientId, from, to);
