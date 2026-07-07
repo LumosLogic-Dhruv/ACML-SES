@@ -8,6 +8,7 @@ import { applyTemplate } from '../services/unsubscribe';
 import { sanitizeEmailBody } from '../services/sanitize';
 import { pool } from '../services/db';
 import { config } from '../config';
+import { istMidnight } from '../utils/time';
 
 const router = Router();
 
@@ -175,8 +176,8 @@ router.post('/send', uploadFields, async (req: Request, res: Response, next: Nex
     if (req.dailyLimit > 0) {
       const { rows: countRows } = await pool.query<{ today_count: string }>(
         `SELECT COUNT(*) AS today_count FROM email_logs
-         WHERE client_id = $1 AND sent_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`,
-        [req.clientId]
+         WHERE client_id = $1 AND sent_at >= $2`,
+        [req.clientId, istMidnight(0)]
       );
       todayCount = parseInt(countRows[0]?.today_count ?? '0', 10);
       if (todayCount >= req.dailyLimit) {

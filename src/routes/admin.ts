@@ -158,8 +158,8 @@ router.get('/clients/:id/budget', async (req: Request, res: Response) => {
 
   const { rows: countRows } = await pool.query<{ today_count: string }>(
     `SELECT COUNT(*) AS today_count FROM email_logs
-     WHERE client_id = $1 AND sent_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`,
-    [id]
+     WHERE client_id = $1 AND sent_at >= $2`,
+    [id, istMidnight(0)]
   );
   const sentToday = parseInt(countRows[0]?.today_count ?? '0', 10);
 
@@ -195,7 +195,7 @@ router.get('/clients/:id/emails', async (req: Request, res: Response) => {
     params.push(new Date(to + 'T23:59:59.999Z'));
     whereClauses.push(`sent_at <= $${params.length}`);
   } else if (days) {
-    params.push(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
+    params.push(istMidnight(days - 1)); // days=1 ("Today") → today's IST midnight
     whereClauses.push(`sent_at >= $${params.length}`);
   }
 
