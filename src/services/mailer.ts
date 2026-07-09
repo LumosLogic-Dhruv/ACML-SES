@@ -6,10 +6,10 @@ import type { SmtpConfig } from '../types';
 const transporterCache = new Map<string, nodemailer.Transporter>();
 
 function getTransporter(smtpConfig?: SmtpConfig): nodemailer.Transporter {
-  const host = smtpConfig?.host ?? config.smtp.host;
-  const port = smtpConfig?.port ?? config.smtp.port;
-  const user = smtpConfig?.user ?? config.smtp.user;
-  const pass = smtpConfig?.pass ?? config.smtp.pass;
+  if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) {
+    throw new Error('SMTP not configured for this client. Set smtp_host/smtp_user/smtp_pass in api_keys.');
+  }
+  const { host, port, user, pass } = smtpConfig;
 
   const cacheKey = `${host}:${port}:${user}`;
 

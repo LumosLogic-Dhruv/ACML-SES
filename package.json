@@ -1,7 +1,7 @@
 {
   "name": "acml-ses",
   "version": "1.0.0",
-  "description": "AWS SES Email API with bulk sending and CloudWatch metrics",
+  "description": "AWS SES Email API with bulk sending",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
@@ -9,7 +9,6 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@aws-sdk/client-cloudwatch": "^3.600.0",
     "@aws-sdk/client-sesv2": "^3.1079.0",
     "@types/express-rate-limit": "^5.1.3",
     "@types/node-cron": "^3.0.11",
@@ -24,12 +23,14 @@
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
+    "mailparser": "^3.9.14",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^4.5.0",
     "nodemailer": "^6.9.13",
     "pdfkit": "^0.19.1",
     "pg": "^8.21.0",
     "sanitize-html": "^2.17.5",
+    "smtp-server": "^3.19.2",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^9.0.1",
     "zod": "^3.22.4"

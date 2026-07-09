@@ -12,7 +12,6 @@ import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/admin';
 import clientRoutes from './routes/clientRoutes';
 import emailRoutes from './routes/email';
-import metricsRoutes from './routes/metrics';
 import statsRoutes from './routes/stats';
 import webhookRoutes from './routes/webhook';
 import docsRoutes from './routes/docs';
@@ -67,7 +66,6 @@ app.use('/client', requireAuth, settingsRoutes);
 app.use('/api', rateLimiter, requireApiKey, sendRoutes);
 // Dashboard read-only routes — relaxed rate limit
 app.use('/api', dashboardLimiter, requireApiKey, emailRoutes);
-app.use('/api', dashboardLimiter, requireApiKey, metricsRoutes);
 app.use('/api', dashboardLimiter, requireApiKey, statsRoutes);
 
 app.use((err: Error & { code?: string }, _req: Request, res: Response, _next: NextFunction) => {

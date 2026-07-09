@@ -39,7 +39,7 @@ router.post('/send-email', async (req: Request, res: Response, next: NextFunctio
   const sender = from || config.ses.defaultFrom;
 
   const results = await Promise.allSettled(
-    recipients.map(email => sendEmail({ to: email, from: sender, subject, body, isHtml, replyTo }))
+    recipients.map(email => sendEmail({ to: email, from: sender, subject, body, isHtml, replyTo, smtpConfig: req.smtpConfig }))
   );
 
   const report = results.map((r, i) => ({
@@ -81,6 +81,7 @@ router.post('/send-with-attachment', upload.single('attachment'), async (req: Re
       isHtml: isHtml !== 'false',
       replyTo,
       attachments,
+      smtpConfig: req.smtpConfig,
     });
 
     await logEmail({

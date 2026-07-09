@@ -21,6 +21,9 @@ export async function initDb(): Promise<void> {
   await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS notify_hard_bounce_email TEXT`).catch(() => {});
   await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS notify_soft_bounce_email TEXT`).catch(() => {});
   await pool.query(`ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS bounce_type TEXT`).catch(() => {});
+  await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS relay_username TEXT`).catch(() => {});
+  await pool.query(`ALTER TABLE api_keys   ADD COLUMN IF NOT EXISTS relay_password TEXT`).catch(() => {});
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_relay_username ON api_keys (relay_username) WHERE relay_username IS NOT NULL`).catch(() => {});
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS email_logs (
