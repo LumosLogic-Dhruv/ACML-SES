@@ -80,7 +80,7 @@ export async function updateEmailEvent(messageId: string, event: 'delivered' | '
 
 export async function getRecentEmails(
   clientId: string,
-  limit: number = 100,
+  limit: number | undefined = 100,
   from?: Date,
   to?: Date
 ): Promise<EmailLogEntry[]> {
@@ -92,7 +92,11 @@ export async function getRecentEmails(
     conditions.push(`sent_at >= $${params.length - 1} AND sent_at <= $${params.length}`);
   }
 
-  params.push(Math.min(limit, 10000));
+  let limitClause = '';
+  if (limit !== undefined) {
+    params.push(Math.min(limit, 100000));
+    limitClause = `LIMIT $${params.length}`;
+  }
 
   const { rows } = await pool.query(
     `SELECT id, message_id AS "messageId", recipient, subject,
@@ -101,7 +105,7 @@ export async function getRecentEmails(
      FROM email_logs
      WHERE ${conditions.join(' AND ')}
      ORDER BY sent_at DESC
-     LIMIT $${params.length}`,
+     ${limitClause}`,
     params
   );
   return rows;

@@ -82,7 +82,8 @@ router.get('/emails', async (req: Request, res: Response) => {
   const clientId = req.user?.clientId;
   if (!clientId) { res.status(403).json({ error: 'No client associated with this account' }); return; }
 
-  const limit  = Math.min(parseInt((req.query.limit  as string) || '100'), 10000);
+  const limitParam = req.query.limit as string | undefined;
+  const limit  = limitParam === 'all' ? 100000 : Math.min(parseInt(limitParam || '100'), 100000);
   const offset = parseInt((req.query.offset as string) || '0');
   const search = (req.query.search as string | undefined)?.trim();
   let   from   = req.query.from as string | undefined;

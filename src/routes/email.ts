@@ -160,7 +160,8 @@ router.get('/logs', async (req: Request, res: Response, next: NextFunction) => {
 // GET /api/recent-emails?from=2026-06-01&to=2026-06-18
 router.get('/recent-emails', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const limit = Math.min(parseInt((req.query.limit as string) || '100'), 10000);
+    const limitParam = req.query.limit as string | undefined;
+    const limit = limitParam === 'all' ? undefined : Math.min(parseInt(limitParam || '100'), 100000);
     const { getRecentEmails } = await import('../services/emailLog');
 
     let from: Date | undefined;

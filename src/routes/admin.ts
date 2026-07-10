@@ -182,7 +182,9 @@ router.get('/clients/:id/budget', async (req: Request, res: Response) => {
 // GET /admin/clients/:id/emails?limit=50&offset=0&from=YYYY-MM-DD&to=YYYY-MM-DD&days=7
 router.get('/clients/:id/emails', async (req: Request, res: Response) => {
   const { id }  = req.params;
-  const limit   = Math.min(parseInt((req.query.limit  as string) || '50'),  10000);
+  const limitParam = req.query.limit as string | undefined;
+  const noLimit = limitParam === 'all';
+  const limit   = noLimit ? 100000 : Math.min(parseInt(limitParam || '50'), 100000);
   const offset  = parseInt((req.query.offset as string) || '0');
   const search  = (req.query.search as string | undefined)?.trim();
   let   from    = req.query.from as string | undefined;

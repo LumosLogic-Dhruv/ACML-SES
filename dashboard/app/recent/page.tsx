@@ -6,6 +6,7 @@ import { getRecentEmails, getAdminClientEmails, getClientEmails } from "@/lib/ap
 import { useClient } from "@/lib/clientContext"
 import { decodeToken } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
+import { BounceReason } from "@/components/BounceReason"
 import {
   Select,
   SelectContent,
@@ -49,7 +50,7 @@ function formatTime(isoString: string): string {
 type Preset = "1" | "7" | "30" | "90" | "custom"
 type StatusFilter = "all" | "sent" | "delivered" | "bounced" | "failed"
 
-const LIMIT_OPTIONS = [100, 200, 500, 1000, 3000, 5000]
+const LIMIT_OPTIONS: (number | "all")[] = [100, 200, 500, 1000, 3000, 5000, "all"]
 const PAGE_SIZE = 100
 
 function getEmailStatus(email: EmailLogEntry): StatusFilter {
@@ -145,7 +146,7 @@ export default function RecentEmailsPage() {
   const [emails, setEmails] = useState<EmailLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [limit, setLimit] = useState(100)
+  const [limit, setLimit] = useState<number | "all">(100)
   const [preset, setPreset] = useState<Preset>("1")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
@@ -270,11 +271,11 @@ export default function RecentEmailsPage() {
 
                 <select
                   value={limit}
-                  onChange={(e) => { setLoading(true); setLimit(Number(e.target.value)); setCurrentPage(1) }}
+                  onChange={(e) => { setLoading(true); setLimit(e.target.value === "all" ? "all" : Number(e.target.value)); setCurrentPage(1) }}
                   className="text-xs sm:text-sm border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
                 >
                   {LIMIT_OPTIONS.map(opt => (
-                    <option key={opt} value={opt}>Limit {opt}</option>
+                    <option key={opt} value={opt}>{opt === "all" ? "All Emails" : `Limit ${opt}`}</option>
                   ))}
                 </select>
               </div>
@@ -385,7 +386,7 @@ export default function RecentEmailsPage() {
                   {email.bounced   && <span className="text-red-500">• Bounced</span>}
                 </div>
                 {email.bounceReason && (
-                  <p className="text-xs text-red-400 mt-1 truncate">{email.bounceReason}</p>
+                  <BounceReason reason={email.bounceReason} className="mt-1" />
                 )}
               </div>
             ))
@@ -435,13 +436,7 @@ export default function RecentEmailsPage() {
                       {email.bounced ? <span className="text-red-500">✓</span> : <span className="text-[var(--muted-foreground)]">—</span>}
                     </td>
                     <td className="px-4 py-3 max-w-[220px]">
-                      {email.bounceReason ? (
-                        <span className="text-xs text-red-500 break-words leading-relaxed">
-                          {email.bounceReason}
-                        </span>
-                      ) : (
-                        <span className="text-[var(--muted-foreground)]">—</span>
-                      )}
+                      <BounceReason reason={email.bounceReason} emptyText="—" />
                     </td>
                     <td className="px-4 py-3 text-[var(--muted-foreground)] whitespace-nowrap">{formatTime(email.sentAt)}</td>
                   </tr>

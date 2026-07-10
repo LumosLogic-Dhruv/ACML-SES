@@ -6,6 +6,7 @@ import { getAdminClientEmails, getClientEmails } from "@/lib/api"
 import { useClient } from "@/lib/clientContext"
 import { decodeToken } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
+import { BounceReason } from "@/components/BounceReason"
 import {
   Select,
   SelectContent,
@@ -50,7 +51,7 @@ function getTodayIST(): string {
 }
 
 type Preset = "1" | "7" | "30" | "90" | "custom"
-const LIMIT_OPTIONS = [100, 200, 500, 1000, 3000, 5000]
+const LIMIT_OPTIONS: (number | "all")[] = [100, 200, 500, 1000, 3000, 5000, "all"]
 
 function exportCSV(emails: EmailLogEntry[], periodLabel: string) {
   const headers = ["#", "Email", "Subject", "Type", "Bounce Reason", "Time (IST)"]
@@ -92,7 +93,7 @@ export default function BouncesPage() {
   const [bounces, setBounces] = useState<EmailLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [limit, setLimit] = useState(1000)
+  const [limit, setLimit] = useState<number | "all">(1000)
   const [preset, setPreset] = useState<Preset>("1")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
@@ -192,10 +193,10 @@ export default function BouncesPage() {
                 </Select>
                 <select
                   value={limit}
-                  onChange={e => setLimit(Number(e.target.value))}
+                  onChange={e => setLimit(e.target.value === "all" ? "all" : Number(e.target.value))}
                   className="text-xs sm:text-sm border border-[var(--border)] rounded-md px-2 py-1.5 bg-[var(--background)] text-[var(--foreground)] cursor-pointer"
                 >
-                  {LIMIT_OPTIONS.map(opt => <option key={opt} value={opt}>Limit {opt}</option>)}
+                  {LIMIT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt === "all" ? "All Emails" : `Limit ${opt}`}</option>)}
                 </select>
               </div>
               {preset === "custom" && (
@@ -340,9 +341,7 @@ export default function BouncesPage() {
                   <BounceBadge bounceType={email.bounceType} />
                 </div>
                 <p className="text-sm truncate mb-1">{email.subject}</p>
-                {email.bounceReason && (
-                  <p className="text-xs text-red-500 break-words leading-relaxed mb-1">{email.bounceReason}</p>
-                )}
+                <BounceReason reason={email.bounceReason} className="mb-1" />
                 <p className="text-xs text-[var(--muted-foreground)]">{formatTime(email.sentAt)}</p>
               </div>
             ))
@@ -382,11 +381,7 @@ export default function BouncesPage() {
                     <td className="px-4 py-3 max-w-[180px] truncate">{email.subject}</td>
                     <td className="px-4 py-3"><BounceBadge bounceType={email.bounceType} /></td>
                     <td className="px-4 py-3 max-w-[300px]">
-                      {email.bounceReason ? (
-                        <span className="text-xs text-red-500 break-words leading-relaxed">{email.bounceReason}</span>
-                      ) : (
-                        <span className="text-xs text-[var(--muted-foreground)]">No reason captured</span>
-                      )}
+                      <BounceReason reason={email.bounceReason} />
                     </td>
                     <td className="px-4 py-3 text-[var(--muted-foreground)] whitespace-nowrap text-xs">{formatTime(email.sentAt)}</td>
                   </tr>
