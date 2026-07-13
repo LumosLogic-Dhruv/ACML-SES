@@ -12,7 +12,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, config.jwtSecret, { expiresIn: '24h' });
+  return jwt.sign(payload, config.jwtSecret, { expiresIn: '7d' });
 }
 
 export function verifyToken(token: string): JwtPayload {

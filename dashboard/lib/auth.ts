@@ -19,6 +19,12 @@ export function isAuthenticated(): boolean {
   return !!getToken()
 }
 
+export function isTokenExpired(): boolean {
+  const payload = decodeToken()
+  if (!payload?.exp) return false
+  return Date.now() >= payload.exp * 1000
+}
+
 export function getStoredApiKey(): string {
   if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_API_KEY || ''
   return localStorage.getItem(API_KEY_STORAGE) || process.env.NEXT_PUBLIC_API_KEY || ''
@@ -33,14 +39,17 @@ export interface TokenPayload {
   username: string
   role: string
   clientId: string | null
+  exp?: number
 }
 
 export function decodeToken(): TokenPayload | null {
   const token = getToken()
   if (!token) return null
   try {
-    const payload = token.split('.')[1]
-    return JSON.parse(atob(payload)) as TokenPayload
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=')
+    return JSON.parse(atob(padded)) as TokenPayload
   } catch {
     return null
   }

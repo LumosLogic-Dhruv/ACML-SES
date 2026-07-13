@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Menu, Mail } from "lucide-react"
-import { isAuthenticated } from "@/lib/auth"
+import { isAuthenticated, isTokenExpired, clearAuth } from "@/lib/auth"
 import { Sidebar } from "@/components/Sidebar"
 import { ClientProvider } from "@/lib/clientContext"
 
@@ -21,7 +21,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       setReady(true)
       return
     }
-    if (!isAuthenticated()) {
+    if (isAuthenticated() && isTokenExpired()) {
+      clearAuth()
+      router.replace("/login")
+    } else if (!isAuthenticated()) {
       router.replace("/landing")
     } else {
       setReady(true)

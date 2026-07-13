@@ -1,11 +1,11 @@
-import { getStoredApiKey, getToken } from './auth'
+import { getStoredApiKey, getToken, clearAuth } from './auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006'
 
 // ── Admin fetch (JWT Bearer) ──────────────────────────────────────────────────
 async function fetchAdmin(path: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken()
-  return fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     cache: 'no-store',
     headers: {
@@ -14,6 +14,11 @@ async function fetchAdmin(path: string, options: RequestInit = {}): Promise<Resp
       ...(options.headers as Record<string, string> ?? {}),
     },
   })
+  if (res.status === 401) {
+    clearAuth()
+    if (typeof window !== 'undefined') window.location.href = '/login'
+  }
+  return res
 }
 
 // Admin types
